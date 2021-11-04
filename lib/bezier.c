@@ -88,4 +88,61 @@ void bezierSurface_zBuffer(BezierCurve *b, int flag) {
  * it is reasonable to draw the lines between the control points as an 
  * approximation to the curve.
  */
-void bezierCurve_draw(BezierCurve *b, Image *src, Color c);
+void bezierCurve_draw(BezierCurve *b, Image *src, Color c) {
+    Line *l = malloc(sizeof(Line));
+    float distance = sqrt(
+        (b->ctrls[2].val[0] - b->ctrls[1].val[0]) * (b->ctrls[2].val[0] - b->ctrls[1].val[0]) +
+        (b->ctrls[2].val[1] - b->ctrls[1].val[1]) * (b->ctrls[2].val[1] - b->ctrls[1].val[1])
+    );
+
+    if (distance < 10.0) {
+        line_set(l, b->ctrls[0], b->ctrls[1]);
+        line_draw(l, src, c);
+        line_set(l, b->ctrls[1], b->ctrls[2]);
+        line_draw(l, src, c);
+        line_set(l, b->ctrls[2], b->ctrls[3]);
+        line_draw(l, src, c);
+        free(l);
+        return;
+    }
+
+    // Split the curve into two bezier curves and draw those recursively:
+    BezierCurve *left = malloc(sizeof(BezierCurve));
+    BezierCurve *right = malloc(sizeof(BezierCurve));
+
+    bezierCurve_init(left);
+    bezierCurve_init(right);
+
+    // Define left curve ctl points:
+    point_copy(&(left->ctrls[0]), &(b->ctrls[0])); // q0
+    left->ctrls[1].val[0] = (b->ctrls[0].val[0] + b->ctrls[1].val[0]) / 2;// q1x
+    left->ctrls[1].val[1] = (b->ctrls[0].val[1] + b->ctrls[1].val[1]) / 2;// q1y
+
+    left->ctrls[2].val[0] = ((left->ctrls[1].val[0]) / 2) +
+                            ((b->ctrls[1].val[0] + b->ctrls[2].val[0]) / 4);
+    left->ctrls[2].val[1] = ((left->ctrls[1].val[1]) / 2) +
+                            ((b->ctrls[1].val[1] + b->ctrls[2].val[1]) / 4);
+    
+    // Define right curve ctl points:
+    point_copy(&(right->ctrls[3]), &(b->ctrls[3])); // r3
+    right->ctrls[2].val[0] = (b->ctrls[2].val[0] + b->ctrls[3].val[0]) / 2;// r1x
+    right->ctrls[2].val[1] = (b->ctrls[2].val[1] + b->ctrls[3].val[1]) / 2;// r1y
+
+    right->ctrls[1].val[0] = ((right->ctrls[2].val[0]) / 2) +
+                            ((b->ctrls[1].val[0] + b->ctrls[2].val[0]) / 4);
+    right->ctrls[1].val[1] = ((right->ctrls[2].val[1]) / 2) +
+                            ((b->ctrls[1].val[1] + b->ctrls[2].val[1]) / 4);
+
+    // Define point where two curves meet:
+    left->ctrls[3].val[0] = (left->ctrls[2].val[0] + right->ctrls[1].val[0]) / 2;
+    left->ctrls[3].val[1] = (left->ctrls[2].val[1] + right->ctrls[1].val[1]) / 2;
+    point_copy(&(right->ctrls[0]), &(left->ctrls[3]));
+
+    // Recursively draw each side:
+    bezierCurve_draw(left, src, c);
+    bezierCurve_draw(right, src, c);
+
+    free(l);
+    free(left);
+    free(right);
+}

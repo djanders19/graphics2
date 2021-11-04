@@ -164,6 +164,9 @@ test6c: $(ODIR)/test6c.o
 test6d: $(ODIR)/test6d.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test7a: $(ODIR)/test7a.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 pbil: $(ODIR)/pbil.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
