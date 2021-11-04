@@ -148,6 +148,7 @@ void line_copy(Line *to, Line *from) {
 void line_draw(Line *l, Image *src, Color c) {
     int index = 0;
     int maxIndex = src->cols * src->rows;
+    int xmax = src->cols;
     int i = 0;
     int x1 = l->b.val[0];
     int y1 = l->b.val[1];
@@ -165,7 +166,8 @@ void line_draw(Line *l, Image *src, Color c) {
             for (i = 0; i < dy; i++) {
                 // Color the pixel to the right
                 index = (src->cols * y) + x;
-                if (!(index < 0) && !(index > maxIndex)) {
+                if (!(index < 0) && !(index > maxIndex) && 
+                x >= 0 && x < xmax) {
                     src->data[index].rgb[0] = c.c[0];
                     src->data[index].rgb[1] = c.c[1]; 
                     src->data[index].rgb[2] = c.c[2];
@@ -177,7 +179,8 @@ void line_draw(Line *l, Image *src, Color c) {
             for (i = 0; i > dy; i--) {
                 // Color the pixel to the left
                 index = (src->cols * (y - 1)) + x - 1;
-                if (!(index < 0) && !(index > maxIndex)) {
+                if (!(index < 0) && !(index > maxIndex) && 
+                x >= 0 && x < xmax) {
                     src->data[index].rgb[0] = c.c[0];
                     src->data[index].rgb[1] = c.c[1]; 
                     src->data[index].rgb[2] = c.c[2];
@@ -196,7 +199,7 @@ void line_draw(Line *l, Image *src, Color c) {
             for (i = 0; i < dx; i++) {
                 // Color the pixel above theoretical axis
                 index = (src->cols * (y - 1)) + x;
-                if (!(index < 0) && !(index > maxIndex)) {
+                if (!(index < 0) && !(index > maxIndex) && x < xmax) {
                     src->data[index].rgb[0] = c.c[0];
                     src->data[index].rgb[1] = c.c[1]; 
                     src->data[index].rgb[2] = c.c[2];
@@ -211,7 +214,7 @@ void line_draw(Line *l, Image *src, Color c) {
                 // Color the pixel below the theoretical axis
                 // don't light up rightmost pixel
                 index = (src->cols * y) + x - 1;
-                if (!(index < 0) && !(index > maxIndex)) {
+                if (!(index < 0) && !(index > maxIndex) && x < xmax) {
                     src->data[index].rgb[0] = c.c[0];
                     src->data[index].rgb[1] = c.c[1]; 
                     src->data[index].rgb[2] = c.c[2];
@@ -238,10 +241,6 @@ void line_draw(Line *l, Image *src, Color c) {
     
     int e_prime = 3 * dy - 2 * dx; // initialize e_prime
 
-    // For debugging:
-    // printf("drawing line from (%d, %d) to (%d, %d)\n", x0, y0, x1, y1);
-    // printf("dx = %d | dy = %d\n\n", dx, dy);
-
     if (dx > 0 && dx >= dy) {
         // first octant
         for (i = 0; i < dx; i++) {
@@ -249,7 +248,7 @@ void line_draw(Line *l, Image *src, Color c) {
             // image_setColor(src, y, x, c);
             index = (src->cols * y) + x;
             if (!(index < 0) && !(index > maxIndex) && 
-                x > 0 && x < src->cols) {
+                x >= 0 && x < xmax) {
                 src->data[index].rgb[0] = c.c[0];
                 src->data[index].rgb[1] = c.c[1]; 
                 src->data[index].rgb[2] = c.c[2];
@@ -276,7 +275,7 @@ void line_draw(Line *l, Image *src, Color c) {
             // image_setColor(src, y, x, c);
             index = (src->cols * y) + x;
             if (!(index < 0) && !(index > maxIndex) && 
-                x > 0 && x < src->cols) {
+                x >= 0 && x < xmax) {
                 src->data[index].rgb[0] = c.c[0];
                 src->data[index].rgb[1] = c.c[1]; 
                 src->data[index].rgb[2] = c.c[2];
@@ -304,7 +303,7 @@ void line_draw(Line *l, Image *src, Color c) {
             // image_setColor(src, y, x-1, c);
             index = (src->cols * y) + x;
             if (!(index < 0) && !(index > maxIndex) && 
-                x > 0 && x < src->cols) {
+                x >= 0 && x < xmax) {
                 src->data[index].rgb[0] = c.c[0];
                 src->data[index].rgb[1] = c.c[1]; 
                 src->data[index].rgb[2] = c.c[2];
@@ -332,7 +331,7 @@ void line_draw(Line *l, Image *src, Color c) {
             
             index = (src->cols * y) + x;
             if (!(index < 0) && !(index > maxIndex) && 
-                x > 0 && x < src->cols) {
+                x >= 0 && x < xmax) {
                 src->data[index].rgb[0] = c.c[0];
                 src->data[index].rgb[1] = c.c[1]; 
                 src->data[index].rgb[2] = c.c[2];
@@ -354,51 +353,51 @@ void line_draw(Line *l, Image *src, Color c) {
     // printf("Unhandled case\n\n\n");
 }
 
-/**
- * Helper function for pthread_line_draw.
- */
-void *thread1 (void *input) {
-    line_draw(((struct args*)input)->l, 
-              ((struct args*)input)->src,
-              ((struct args*)input)->c);
-    return NULL;
-}
+// /**
+//  * Helper function for pthread_line_draw.
+//  */
+// void *thread1 (void *input) {
+//     line_draw(((struct args*)input)->l, 
+//               ((struct args*)input)->src,
+//               ((struct args*)input)->c);
+//     return NULL;
+// }
 
-/**
- * A multithreaded implementation of line_draw. Despite my best attempts, it 
- * remains significantly slower than line_draw and should be avoided for the
- * time being.
- */
-void pthread_line_draw(Line *l, Image *src, Color c) {
-    pthread_t* tid = malloc(2 * sizeof(pthread_t));
-    Line l1, l2;
-    // printf("%f, %f\n", l->b.val[0], l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2);
-    int midx = l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2;
-    int midy = l->b.val[1] - (l->b.val[1] - l->a.val[1]) / 2;
-    Point midpoint;
-    point_set2D(&midpoint, midx, midy);
-    line_set(&l1, l->a, midpoint);
-    line_set(&l2, midpoint, l->b);
-    struct args *line1 = (struct args *) malloc(sizeof(struct args));
-    struct args *line2 = (struct args *) malloc(sizeof(struct args));
+// /**
+//  * A multithreaded implementation of line_draw. Despite my best attempts, it 
+//  * remains significantly slower than line_draw and should be avoided for the
+//  * time being.
+//  */
+// void pthread_line_draw(Line *l, Image *src, Color c) {
+//     pthread_t* tid = malloc(2 * sizeof(pthread_t));
+//     Line l1, l2;
+//     // printf("%f, %f\n", l->b.val[0], l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2);
+//     int midx = l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2;
+//     int midy = l->b.val[1] - (l->b.val[1] - l->a.val[1]) / 2;
+//     Point midpoint;
+//     point_set2D(&midpoint, midx, midy);
+//     line_set(&l1, l->a, midpoint);
+//     line_set(&l2, midpoint, l->b);
+//     struct args *line1 = (struct args *) malloc(sizeof(struct args));
+//     struct args *line2 = (struct args *) malloc(sizeof(struct args));
     
-    line1->c = c;
-    line1->l = &l1;
-    line1->src = src;
+//     line1->c = c;
+//     line1->l = &l1;
+//     line1->src = src;
 
-    line2->c = c;
-    line2->l = &l2;
-    line2->src = src;
-    // line_draw(&l1, src, c);
-    // line_draw(&l2, src, c);
-    pthread_create(&(tid[0]), NULL, thread1, (void *)line1);
-    pthread_create(&(tid[1]), NULL, thread1, (void *)line2);
-    pthread_join(tid[0], NULL);
-    pthread_join(tid[1], NULL);
-    free(line1);
-    free(line2);
-    free(tid);
-}
+//     line2->c = c;
+//     line2->l = &l2;
+//     line2->src = src;
+//     // line_draw(&l1, src, c);
+//     // line_draw(&l2, src, c);
+//     pthread_create(&(tid[0]), NULL, thread1, (void *)line1);
+//     pthread_create(&(tid[1]), NULL, thread1, (void *)line2);
+//     pthread_join(tid[0], NULL);
+//     pthread_join(tid[1], NULL);
+//     free(line1);
+//     free(line2);
+//     free(tid);
+// }
 
 
 /* CIRCLE PRIMITIVES */

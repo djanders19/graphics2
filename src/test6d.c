@@ -33,18 +33,24 @@ void cylinder( Module *mod, int sides ) {
   for(i=0;i<sides;i++) {
     Point pt[4];
 
+    // Make the fan
+    // Top:
+    // Define x/z for the fan points on outside of cylinder
     x1 = cos( i * M_PI * 2.0 / sides );
     z1 = sin( i * M_PI * 2.0 / sides );
     x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
     z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
 
+    // copy those points into pt[]
     point_copy( &pt[0], &xtop );
     point_set3D( &pt[1], x1, 1.0, z1 );
     point_set3D( &pt[2], x2, 1.0, z2 );
 
+    // Set a polygon for the fan:
     polygon_set( &p, 3, pt );
     module_polygon( mod, &p );
 
+    // Do the same for the bottom:
     point_copy( &pt[0], &xbot );
     point_set3D( &pt[1], x1, 0.0, z1 );
     point_set3D( &pt[2], x2, 0.0, z2 );
@@ -52,6 +58,7 @@ void cylinder( Module *mod, int sides ) {
     polygon_set( &p, 3, pt );
     module_polygon( mod, &p );
 
+    // Link the top and bottom with a rectangular side
     point_set3D( &pt[0], x1, 0.0, z1 );
     point_set3D( &pt[1], x2, 0.0, z2 );
     point_set3D( &pt[2], x2, 1.0, z2 );
@@ -175,7 +182,7 @@ int main(int argc, char *argv[]) {
 
     // Add a third formation of tie-fighters right behind the first:
     module_identity(scene);
-    module_translate(scene, 0, -1.5, -20.0);
+    module_translate(scene, 1.0, -1.5, -20.0);
     module_module(scene, formation);
 
     src = image_create( 360, 640 );
