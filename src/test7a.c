@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 	bezierCurve_set(&bc, p);
 
 	printf("Drawing bezier curve\n");
-	bezierCurve_draw_with_subdivisions( &bc, 10, src, blue );
+	bezierCurve_draw_with_subdivisions( &bc, 10, 1, src, blue );
 
 	// write the image and clean up
 	image_write(src, "bez2d.ppm");

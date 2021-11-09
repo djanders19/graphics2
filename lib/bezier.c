@@ -147,13 +147,36 @@ void bezierCurve_draw(BezierCurve *b, Image *src, Color c) {
     free(right);
 }
 
-void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions, Image *src, Color c) {
+/**
+ * Draw a bezier curve with the specified number of subdivisions. Note that
+ * setting subdivisions too high can cause breaks in the curve when rendered due
+ * to rounding errors in the point values as the subdivisions become very fine. 
+ * This is preventable by setting the safetyFlag to 1 - this causes the curve to
+ * be drawn if the points are closer than 10 pixels to each other, as in the 
+ * naive bezierCurve_draw function.
+ */
+void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions,
+                                        int safetyFlag, Image *src, Color c) {
     Line *l = malloc(sizeof(Line));
     float distance = sqrt(
         (b->ctrls[2].val[0] - b->ctrls[1].val[0]) * (b->ctrls[2].val[0] - b->ctrls[1].val[0]) +
         (b->ctrls[2].val[1] - b->ctrls[1].val[1]) * (b->ctrls[2].val[1] - b->ctrls[1].val[1])
     );
 
+    // If using in safe mode, draw when points are less than 10.0 units from
+    // each other to prevent tearing:
+    if (safetyFlag && distance < 10.0) {
+        line_set(l, b->ctrls[0], b->ctrls[1]);
+        line_draw(l, src, c);
+        line_set(l, b->ctrls[1], b->ctrls[2]);
+        line_draw(l, src, c);
+        line_set(l, b->ctrls[2], b->ctrls[3]);
+        line_draw(l, src, c);
+        free(l);
+        return;
+    }
+
+    // Otherwise, subdivide all the way down to zero:
     if (divisions == 0) {
         line_set(l, b->ctrls[0], b->ctrls[1]);
         line_draw(l, src, c);
@@ -198,8 +221,8 @@ void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions, Image *sr
     point_copy(&(right->ctrls[0]), &(left->ctrls[3]));
 
     // Recursively draw each side:
-    bezierCurve_draw_with_subdivisions(left, divisions - 1, src, c);
-    bezierCurve_draw_with_subdivisions(right, divisions - 1, src, c);
+    bezierCurve_draw_with_subdivisions(left, divisions - 1, safetyFlag, src, c);
+    bezierCurve_draw_with_subdivisions(right, divisions - 1, safetyFlag, src, c);
 
     free(l);
     free(left);

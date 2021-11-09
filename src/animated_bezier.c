@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	// set and draw the curve
     for (int i = 0; i <= 10; i++) {
         printf("drawing bezier curve with %d subdivisions\n", i);
-        bezierCurve_draw_with_subdivisions( &bc, i, src, blue );
+        bezierCurve_draw_with_subdivisions( &bc, i, 0, src, blue );
         
         // write the image
         sprintf(filename, "bezier_animated-%04d.ppm", i);
