@@ -82,14 +82,15 @@ void bezierSurface_zBuffer(BezierCurve *b, int flag) {
 
 /**
  * Draws the Bezier curve, given in screen coordinates, into the image using the
- * given color. The function should be adaptive so that it uses an appropriate 
- * number of line segments to draw the curve. For example, if the bounding box 
- * of the control points is less than 10 pixels in the largest dimension, then 
- * it is reasonable to draw the lines between the control points as an 
- * approximation to the curve.
+ * given color. The function is adaptive so that it uses an appropriate 
+ * number of line segments to draw the curve. Specifically, if the diagonal of
+ * the bounding box defined by the first and last line on the curve is shorter
+ * than 10 pixels, the function ceases to subdivide.
  */
 void bezierCurve_draw(BezierCurve *b, Image *src, Color c) {
     Line *l = malloc(sizeof(Line));
+
+    // Calculate diagonal of bounding box:
     float distance = sqrt(
         (b->ctrls[2].val[0] - b->ctrls[1].val[0]) * (b->ctrls[2].val[0] - b->ctrls[1].val[0]) +
         (b->ctrls[2].val[1] - b->ctrls[1].val[1]) * (b->ctrls[2].val[1] - b->ctrls[1].val[1])
@@ -117,27 +118,34 @@ void bezierCurve_draw(BezierCurve *b, Image *src, Color c) {
     point_copy(&(left->ctrls[0]), &(b->ctrls[0])); // q0
     left->ctrls[1].val[0] = (b->ctrls[0].val[0] + b->ctrls[1].val[0]) / 2;// q1x
     left->ctrls[1].val[1] = (b->ctrls[0].val[1] + b->ctrls[1].val[1]) / 2;// q1y
-
+    left->ctrls[1].val[2] = (b->ctrls[0].val[2] + b->ctrls[1].val[2]) / 2;// q1z
+    
     left->ctrls[2].val[0] = ((left->ctrls[1].val[0]) / 2) +
                             ((b->ctrls[1].val[0] + b->ctrls[2].val[0]) / 4);
     left->ctrls[2].val[1] = ((left->ctrls[1].val[1]) / 2) +
                             ((b->ctrls[1].val[1] + b->ctrls[2].val[1]) / 4);
-    
+    left->ctrls[2].val[2] = ((left->ctrls[1].val[2]) / 2) +
+                            ((b->ctrls[1].val[2] + b->ctrls[2].val[2]) / 4);
+
     // Define right curve ctl points:
     point_copy(&(right->ctrls[3]), &(b->ctrls[3])); // r3
     right->ctrls[2].val[0] = (b->ctrls[2].val[0] + b->ctrls[3].val[0]) / 2;// r1x
     right->ctrls[2].val[1] = (b->ctrls[2].val[1] + b->ctrls[3].val[1]) / 2;// r1y
+    right->ctrls[2].val[2] = (b->ctrls[2].val[2] + b->ctrls[3].val[2]) / 2;// r1y
 
     right->ctrls[1].val[0] = ((right->ctrls[2].val[0]) / 2) +
                             ((b->ctrls[1].val[0] + b->ctrls[2].val[0]) / 4);
     right->ctrls[1].val[1] = ((right->ctrls[2].val[1]) / 2) +
                             ((b->ctrls[1].val[1] + b->ctrls[2].val[1]) / 4);
+    right->ctrls[1].val[2] = ((right->ctrls[2].val[2]) / 2) +
+                            ((b->ctrls[1].val[2] + b->ctrls[2].val[2]) / 4);
 
     // Define point where two curves meet:
     left->ctrls[3].val[0] = (left->ctrls[2].val[0] + right->ctrls[1].val[0]) / 2;
     left->ctrls[3].val[1] = (left->ctrls[2].val[1] + right->ctrls[1].val[1]) / 2;
+    left->ctrls[3].val[2] = (left->ctrls[2].val[2] + right->ctrls[1].val[2]) / 2;
     point_copy(&(right->ctrls[0]), &(left->ctrls[3]));
-
+    
     // Recursively draw each side:
     bezierCurve_draw(left, src, c);
     bezierCurve_draw(right, src, c);
