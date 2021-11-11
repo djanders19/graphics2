@@ -28,7 +28,14 @@ void bezierCurve_set(BezierCurve *b, Point *vlist);
 void bezierSurface_set(BezierSurface *b, Point *vlist);
 void bezierCurve_zBuffer(BezierCurve *p, int flag);
 void bezierSurface_zBuffer(BezierCurve *p, int flag);
+
 void bezierCurve_draw(BezierCurve *b, Image *src, Color c);
 void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions, int safetyFlag, Image *src, Color c);
+
 void bezierCurve_copy(BezierCurve *to, BezierCurve *from);
+void bezierSurface_copy(BezierSurface *to, BezierSurface *from);
+
+/* HELPER FUNCTIONS */
+void subdivide(Point *vals, Point *toReturn);
+
 #endif

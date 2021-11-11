@@ -67,6 +67,9 @@ void bezierCurve_set(BezierCurve *b, Point *vlist) {
     }
 }
 
+/**
+ * Copy the information in curve from to curve to.
+ */
 void bezierCurve_copy(BezierCurve *to, BezierCurve *from) {
     if (!to || !from) {
         printf("bezierCurve_copy(): passed NULL pointer as argument.\n");
@@ -93,6 +96,19 @@ void bezierSurface_set(BezierSurface *b, Point *vlist) {
     for (int i = 0; i < 16; i++) {
         point_copy(&(b->ctrls[i]), &(vlist[i]));
     }
+}
+
+void bezierSurface_copy(BezierSurface *to, BezierSurface *from) {
+    if (!to || !from) {
+        printf("bezierSurface_copy(): passed NULL pointer as argument.\n");
+        return;
+    }
+
+    for (int i = 0; i < 16; i++) {
+        point_copy(&(to->ctrls[i]), &(from->ctrls[i]));
+    }
+    to->subdivisions = from->subdivisions;
+    to->zBuffer = from->zBuffer;
 }
 
 /**
@@ -275,4 +291,38 @@ void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions,
     free(l);
     free(left);
     free(right);
+}
+
+void subdivide(Point *vals, Point *toReturn) {
+    // Define left curve ctl points:
+    point_copy(&(toReturn[0]), &(vals[0])); // q0
+    toReturn[1].val[0] = (vals[0].val[0] + vals[1].val[0]) / 2;// q1x
+    toReturn[1].val[1] = (vals[0].val[1] + vals[1].val[1]) / 2;// q1y
+    toReturn[1].val[2] = (vals[0].val[2] + vals[1].val[2]) / 2;// q1z
+    
+    toReturn[2].val[0] = ((toReturn[1].val[0]) / 2) +
+                            ((vals[1].val[0] + vals[2].val[0]) / 4);
+    toReturn[2].val[1] = ((toReturn[1].val[1]) / 2) +
+                            ((vals[1].val[1] + vals[2].val[1]) / 4);
+    toReturn[2].val[2] = ((toReturn[1].val[2]) / 2) +
+                            ((vals[1].val[2] + vals[2].val[2]) / 4);
+
+    // Define right curve ctl points:
+    point_copy(&(toReturn[7]), &(vals[3])); // r3
+    toReturn[6].val[0] = (vals[2].val[0] + vals[3].val[0]) / 2;// r1x
+    toReturn[6].val[1] = (vals[2].val[1] + vals[3].val[1]) / 2;// r1y
+    toReturn[6].val[2] = (vals[2].val[2] + vals[3].val[2]) / 2;// r1y
+
+    toReturn[5].val[0] = ((toReturn[2].val[0]) / 2) +
+                            ((vals[1].val[0] + vals[2].val[0]) / 4);
+    toReturn[5].val[1] = ((toReturn[2].val[1]) / 2) +
+                            ((vals[1].val[1] + vals[2].val[1]) / 4);
+    toReturn[5].val[2] = ((toReturn[2].val[2]) / 2) +
+                            ((vals[1].val[2] + vals[2].val[2]) / 4);
+
+    // Define point where two curves meet:
+    toReturn[3].val[0] = (toReturn[2].val[0] + toReturn[5].val[0]) / 2;
+    toReturn[3].val[1] = (toReturn[2].val[1] + toReturn[5].val[1]) / 2;
+    toReturn[3].val[2] = (toReturn[2].val[2] + toReturn[5].val[2]) / 2;
+    point_copy(&(toReturn[4]), &(toReturn[3]));
 }

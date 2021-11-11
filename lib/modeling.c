@@ -444,7 +444,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjPoint: ;
-            printf("drawing point\n");
+            //printf("drawing point\n");
             Point *x = malloc(sizeof(Point));
             // Copy the point data in E to X
             point_copy(x, &(i->obj.point));
@@ -478,9 +478,9 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
 
             // Normalize L by the homogenous coord
             line_normalize(l);
-            printf("drawing line (%f %f) to (%f %f) with color (%f %f %f)\n",\
+            /*printf("drawing line (%f %f) to (%f %f) with color (%f %f %f)\n",\
             l->a.val[0], l->a.val[1], l->b.val[0], l->b.val[1],\
-            ds->color.c[0], ds->color.c[1], ds->color.c[2]);
+            ds->color.c[0], ds->color.c[1], ds->color.c[2]);*/
             // Draw L using DS->color
             line_draw(l, src, ds->color);
             free(l);
@@ -511,7 +511,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjPolygon: ;
-            printf("drawing polygon\n");
+            //printf("drawing polygon\n");
             // Copy the polygon data in E to P
             Polygon* p = polygon_create();
             polygon_copy(p, &(i->obj.polygon));
@@ -540,7 +540,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
 
         case ObjMatrix:
-            printf("drawing matrix\n");
+            //printf("drawing matrix\n");
             // Left multiply LTM by Matrix field of E (LTM = E * LTM)
             matrix_multiply(&(i->obj.matrix), LTM, LTM);
             break;
@@ -553,7 +553,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
         
         case ObjModule: ;
             // TM = GTM * LTM
-            printf("recursively drawing module\n");
+            //printf("recursively drawing module\n");
             Matrix *tempGTM = malloc(sizeof(Matrix));
             matrix_multiply(GTM, LTM, tempGTM);
             printf("tempGTM:\n");
@@ -570,8 +570,8 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             free(tempDS);
             break;
 
-        case ObjBezier:
-            printf("drawing curve\n");
+        case ObjBezier: ;
+            //printf("drawing curve\n");
             // Copy the polygon data in E to P
             BezierCurve* b = malloc(sizeof(BezierCurve));
             bezierCurve_init(b);
@@ -838,7 +838,123 @@ void module_bezierCurve(Module *m, BezierCurve *b, int divisions) {
     }
 }
 
-void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid);
+void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid) {
+    b->subdivisions = divisions;
+    Line l;
+    if (divisions <= 0) {
+        switch(solid) {
+            case 0:
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 1; j < 4; j++) {
+                        line_set(&l, b->ctrls[i*4 + j - 1], b->ctrls[i*4 + j]);
+                        module_line(m, &l);
+                        line_set(&l, b->ctrls[(j-1)*4 + i], b->ctrls[j*4 + i]);                        
+                        module_line(m, &l);
+                    }
+                }
+                return;
+
+            default:
+                return;
+        }
+    }
+    
+    BezierSurface q, r;
+    bezierSurface_init(&q);
+    bezierSurface_copy(&q, b); //TODO: cleanup this copy
+    bezierSurface_init(&r);
+    bezierSurface_copy(&r, b);
+
+    // Subdivide in x:
+    for (int i = 0; i < 4; i++) {
+        q.ctrls[i*4 + 1].val[0] = (b->ctrls[i*4].val[0] + b->ctrls[i*4 + 1].val[0]) / 2;
+        q.ctrls[i*4 + 1].val[1] = (b->ctrls[i*4].val[1] + b->ctrls[i*4 + 1].val[1]) / 2;
+        q.ctrls[i*4 + 1].val[2] = (b->ctrls[i*4].val[2] + b->ctrls[i*4 + 1].val[2]) / 2;
+
+        q.ctrls[i*4 + 2].val[0] = (q.ctrls[i*4 + 1].val[0] / 2) + (b->ctrls[i*4 + 1].val[0] + b->ctrls[i*4 + 2].val[0]) / 4;
+        q.ctrls[i*4 + 2].val[1] = (q.ctrls[i*4 + 1].val[1] / 2) + (b->ctrls[i*4 + 1].val[1] + b->ctrls[i*4 + 2].val[1]) / 4;
+        q.ctrls[i*4 + 2].val[2] = (q.ctrls[i*4 + 1].val[2] / 2) + (b->ctrls[i*4 + 1].val[2] + b->ctrls[i*4 + 2].val[2]) / 4;
+
+        r.ctrls[i*4 + 2].val[0] = (b->ctrls[i*4 + 2].val[0] + b->ctrls[i*4 + 3].val[0]) / 2;
+        r.ctrls[i*4 + 2].val[1] = (b->ctrls[i*4 + 2].val[1] + b->ctrls[i*4 + 3].val[1]) / 2;
+        r.ctrls[i*4 + 2].val[2] = (b->ctrls[i*4 + 2].val[2] + b->ctrls[i*4 + 3].val[2]) / 2;
+
+        r.ctrls[i*4 + 1].val[0] = (r.ctrls[i*4 + 2].val[0] / 2) + (b->ctrls[i*4 + 1].val[0] + b->ctrls[i*4 + 2].val[0]) / 4;
+        r.ctrls[i*4 + 1].val[1] = (r.ctrls[i*4 + 2].val[1] / 2) + (b->ctrls[i*4 + 1].val[1] + b->ctrls[i*4 + 2].val[1]) / 4;
+        r.ctrls[i*4 + 1].val[2] = (r.ctrls[i*4 + 2].val[2] / 2) + (b->ctrls[i*4 + 1].val[2] + b->ctrls[i*4 + 2].val[2]) / 4;
+
+        q.ctrls[i*4 + 3].val[0] = (q.ctrls[i*4 + 2].val[0] + r.ctrls[i*4 + 1].val[0]) / 2;
+        q.ctrls[i*4 + 3].val[1] = (q.ctrls[i*4 + 2].val[1] + r.ctrls[i*4 + 1].val[1]) / 2;
+        q.ctrls[i*4 + 3].val[2] = (q.ctrls[i*4 + 2].val[2] + r.ctrls[i*4 + 1].val[2]) / 2;
+
+        point_copy(&r.ctrls[i*4 + 0], &q.ctrls[i*4 + 3]);
+    }
+
+    BezierSurface qUp, qDown, rUp, rDown;
+    bezierSurface_init(&qUp);
+    bezierSurface_copy(&qUp, &q); //TODO: cleanup this copy
+    bezierSurface_init(&rUp);
+    bezierSurface_copy(&rUp, &r);
+    bezierSurface_init(&qDown);
+    bezierSurface_copy(&qDown, &q); //TODO: cleanup this copy
+    bezierSurface_init(&rDown);
+    bezierSurface_copy(&rDown, &r);
+
+    // Subdivide q in z:
+    for (int i = 0; i < 4; i++) {
+        qUp.ctrls[i + 1 * 4].val[0] = (q.ctrls[i].val[0] + q.ctrls[i + 1 * 4].val[0]) / 2;
+        qUp.ctrls[i + 1 * 4].val[1] = (q.ctrls[i].val[1] + q.ctrls[i + 1 * 4].val[1]) / 2;
+        qUp.ctrls[i + 1 * 4].val[2] = (q.ctrls[i].val[2] + q.ctrls[i + 1 * 4].val[2]) / 2;
+
+        qUp.ctrls[i + 2 * 4].val[0] = (qUp.ctrls[i + 1 * 4].val[0] / 2) + (q.ctrls[i + 1 * 4].val[0] + q.ctrls[i + 2 * 4].val[0]) / 4;
+        qUp.ctrls[i + 2 * 4].val[1] = (qUp.ctrls[i + 1 * 4].val[1] / 2) + (q.ctrls[i + 1 * 4].val[1] + q.ctrls[i + 2 * 4].val[1]) / 4;
+        qUp.ctrls[i + 2 * 4].val[2] = (qUp.ctrls[i + 1 * 4].val[2] / 2) + (q.ctrls[i + 1 * 4].val[2] + q.ctrls[i + 2 * 4].val[2]) / 4;
+
+        qDown.ctrls[i + 2 * 4].val[0] = (q.ctrls[i + 2 * 4].val[0] + q.ctrls[i + 3 * 4].val[0]) / 2;
+        qDown.ctrls[i + 2 * 4].val[1] = (q.ctrls[i + 2 * 4].val[1] + q.ctrls[i + 3 * 4].val[1]) / 2;
+        qDown.ctrls[i + 2 * 4].val[2] = (q.ctrls[i + 2 * 4].val[2] + q.ctrls[i + 3 * 4].val[2]) / 2;
+
+        qDown.ctrls[i + 1 * 4].val[0] = (qDown.ctrls[i + 2 * 4].val[0] / 2) + (q.ctrls[i + 1 * 4].val[0] + q.ctrls[i + 2 * 4].val[0]) / 4;
+        qDown.ctrls[i + 1 * 4].val[1] = (qDown.ctrls[i + 2 * 4].val[1] / 2) + (q.ctrls[i + 1 * 4].val[1] + q.ctrls[i + 2 * 4].val[1]) / 4;
+        qDown.ctrls[i + 1 * 4].val[2] = (qDown.ctrls[i + 2 * 4].val[2] / 2) + (q.ctrls[i + 1 * 4].val[2] + q.ctrls[i + 2 * 4].val[2]) / 4;
+
+        qUp.ctrls[i + 3 * 4].val[0] = (qUp.ctrls[i + 2 * 4].val[0] + qDown.ctrls[i + 1 * 4].val[0]) / 2;
+        qUp.ctrls[i + 3 * 4].val[1] = (qUp.ctrls[i + 2 * 4].val[1] + qDown.ctrls[i + 1 * 4].val[1]) / 2;
+        qUp.ctrls[i + 3 * 4].val[2] = (qUp.ctrls[i + 2 * 4].val[2] + qDown.ctrls[i + 1 * 4].val[2]) / 2;
+
+        point_copy(&qDown.ctrls[i], &qUp.ctrls[i + 3 * 4]);
+    }
+
+    // Subdivide r in z:
+    for (int i = 0; i < 4; i++) {
+        rUp.ctrls[i + 1 * 4].val[0] = (r.ctrls[i].val[0] + r.ctrls[i + 1 * 4].val[0]) / 2;
+        rUp.ctrls[i + 1 * 4].val[1] = (r.ctrls[i].val[1] + r.ctrls[i + 1 * 4].val[1]) / 2;
+        rUp.ctrls[i + 1 * 4].val[2] = (r.ctrls[i].val[2] + r.ctrls[i + 1 * 4].val[2]) / 2;
+
+        rUp.ctrls[i + 2 * 4].val[0] = (rUp.ctrls[i + 1 * 4].val[0] / 2) + (r.ctrls[i + 1 * 4].val[0] + r.ctrls[i + 2 * 4].val[0]) / 4;
+        rUp.ctrls[i + 2 * 4].val[1] = (rUp.ctrls[i + 1 * 4].val[1] / 2) + (r.ctrls[i + 1 * 4].val[1] + r.ctrls[i + 2 * 4].val[1]) / 4;
+        rUp.ctrls[i + 2 * 4].val[2] = (rUp.ctrls[i + 1 * 4].val[2] / 2) + (r.ctrls[i + 1 * 4].val[2] + r.ctrls[i + 2 * 4].val[2]) / 4;
+
+        rDown.ctrls[i + 2 * 4].val[0] = (r.ctrls[i + 2 * 4].val[0] + r.ctrls[i + 3 * 4].val[0]) / 2;
+        rDown.ctrls[i + 2 * 4].val[1] = (r.ctrls[i + 2 * 4].val[1] + r.ctrls[i + 3 * 4].val[1]) / 2;
+        rDown.ctrls[i + 2 * 4].val[2] = (r.ctrls[i + 2 * 4].val[2] + r.ctrls[i + 3 * 4].val[2]) / 2;
+
+        rDown.ctrls[i + 1 * 4].val[0] = (rDown.ctrls[i + 2 * 4].val[0] / 2) + (r.ctrls[i + 1 * 4].val[0] + r.ctrls[i + 2 * 4].val[0]) / 4;
+        rDown.ctrls[i + 1 * 4].val[1] = (rDown.ctrls[i + 2 * 4].val[1] / 2) + (r.ctrls[i + 1 * 4].val[1] + r.ctrls[i + 2 * 4].val[1]) / 4;
+        rDown.ctrls[i + 1 * 4].val[2] = (rDown.ctrls[i + 2 * 4].val[2] / 2) + (r.ctrls[i + 1 * 4].val[2] + r.ctrls[i + 2 * 4].val[2]) / 4;
+
+        rUp.ctrls[i + 3 * 4].val[0] = (rUp.ctrls[i + 2 * 4].val[0] + rDown.ctrls[i + 1 * 4].val[0]) / 2;
+        rUp.ctrls[i + 3 * 4].val[1] = (rUp.ctrls[i + 2 * 4].val[1] + rDown.ctrls[i + 1 * 4].val[1]) / 2;
+        rUp.ctrls[i + 3 * 4].val[2] = (rUp.ctrls[i + 2 * 4].val[2] + rDown.ctrls[i + 1 * 4].val[2]) / 2;
+
+        point_copy(&rDown.ctrls[i], &rUp.ctrls[i + 3 * 4]);
+    }
+
+    module_bezierSurface(m, &qUp, divisions-1, solid);
+    module_bezierSurface(m, &qDown, divisions-1, solid);
+    module_bezierSurface(m, &rUp, divisions-1, solid);
+    module_bezierSurface(m, &rDown, divisions-1, solid);
+}
 
 /* SHADING/COLOR MODULE FUNCTIONS */
 
