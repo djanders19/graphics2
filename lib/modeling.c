@@ -101,6 +101,11 @@ Element *element_init(ObjectType type, void *obj) {
         toReturn->type = ObjModule;
         toReturn->obj.module = obj;
         break;
+    
+    case ObjBezier:
+        toReturn->type = ObjBezier;
+        bezierCurve_copy(&(toReturn->obj.curve), ((BezierCurve *) obj));
+        break;
 
     default:
         printf("element_init(): passed unknown object type\n");
@@ -565,6 +570,24 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             free(tempDS);
             break;
 
+        case ObjBezier:
+            printf("drawing curve\n");
+            // Copy the polygon data in E to P
+            BezierCurve* b = malloc(sizeof(BezierCurve));
+            bezierCurve_init(b);
+            bezierCurve_copy(b, &(i->obj.curve));
+
+            for (int point = 0; point < 4; point++) {
+                matrix_xformPoint(LTM, &b->ctrls[point], &b->ctrls[point]);
+                matrix_xformPoint(GTM, &b->ctrls[point], &b->ctrls[point]);
+                matrix_xformPoint(VTM, &b->ctrls[point], &b->ctrls[point]);
+                point_normalize(&b->ctrls[point]);
+            }
+
+            bezierCurve_draw_with_subdivisions(b, b->subdivisions, 0, src, ds->color);
+            free(b);
+            break;
+
         default:
             printf("module_draw(): Hit unhandled case. Passing over.\n");
             break;
@@ -683,7 +706,7 @@ void module_rotateY(Module *md, double cth, double sth) {
  * Add a rotation that orients to the orthonormal axes u, v and w.
  */
 void module_rotateXYZ(Module *md, Vector *u, Vector *v, Vector *w) {
-    if (!md) {
+    if (!md || !u || !v || !w) {
         printf("module_rotateXYZ(): passed null pointer.\n");
         return;
     }
@@ -796,6 +819,26 @@ void module_cube(Module *md, int solid) {
         }
     }
 }
+
+/* BEZIER CURVE AND SURFACE FUNCTIONS */
+void module_bezierCurve(Module *m, BezierCurve *b, int divisions) {
+    if (!m || !b) {
+        printf("module_bezierCurve(): passed null pointer.\n");
+        return;
+    }
+
+    b->subdivisions = divisions;
+    Element *e = element_init(ObjBezier, b);
+    if (!m->tail) {
+        m->head = e;
+        m->tail = e;
+    } else {
+        m->tail->next = e; // Set the last element in the list to point to e
+        m->tail = e; // Set the last element to be e.
+    }
+}
+
+void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid);
 
 /* SHADING/COLOR MODULE FUNCTIONS */
 

@@ -25,7 +25,8 @@ typedef enum { // enum of different types of objects that can be in modules
     ObjSurfaceColor,
     ObjSurfaceCoeff,
     ObjLight,
-    ObjModule
+    ObjModule,
+    ObjBezier
 } ObjectType;
 
 /* Union defining possible contents of Element objects */
@@ -37,6 +38,7 @@ typedef union {
     Matrix matrix;
     Color color;
     float coeff;
+    BezierCurve curve;
     void *module;
 } Object;
 

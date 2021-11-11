@@ -16,14 +16,41 @@ void bezierCurve_init(BezierCurve *b) {
     point_set3D(&(b->ctrls[1]), 0.33, 0.0, 0.0);
     point_set3D(&(b->ctrls[2]), 0.66, 0.0, 0.0);
     point_set3D(&(b->ctrls[3]), 1.0, 0.0, 0.0);
-
+    b->subdivisions = 0;
 }
 
 /**
  * sets the zbuffer flag to 1 and the surface to the X-Z plane between (0, 0) 
  * and (1, 1).
  */
-void bezierSurface_init(BezierSurface *b);
+void bezierSurface_init(BezierSurface *b) {
+    b->subdivisions = 0; // Zero unless set by bezierSurface_draw_with_subdivisions
+    b->zBuffer = 1;
+    
+    // X-axis points
+    point_set3D(&(b->ctrls[0]), 0.0, 0.0, 0.0);
+    point_set3D(&(b->ctrls[1]), 0.33, 0.0, 0.0);
+    point_set3D(&(b->ctrls[2]), 0.66, 0.0, 0.0);
+    point_set3D(&(b->ctrls[3]), 1.0, 0.0, 0.0);
+
+    // 1st set up z-axis
+    point_set3D(&(b->ctrls[4]), 0.0, 0.0, 0.33);
+    point_set3D(&(b->ctrls[5]), 0.33, 0.0, 0.33);
+    point_set3D(&(b->ctrls[6]), 0.66, 0.0, 0.33);
+    point_set3D(&(b->ctrls[7]), 1.0, 0.0, 0.33);
+
+    // 2nd set up z-axis
+    point_set3D(&(b->ctrls[8]), 0.0, 0.0, 0.66);
+    point_set3D(&(b->ctrls[9]), 0.33, 0.0, 0.66);
+    point_set3D(&(b->ctrls[10]), 0.66, 0.0, 0.66);
+    point_set3D(&(b->ctrls[11]), 1.0, 0.0, 0.66);
+
+    // 3rd set up z-axis
+    point_set3D(&(b->ctrls[12]), 0.0, 0.0, 1.0);
+    point_set3D(&(b->ctrls[13]), 0.33, 0.0, 1.0);
+    point_set3D(&(b->ctrls[14]), 0.66, 0.0, 1.0);
+    point_set3D(&(b->ctrls[15]), 1.0, 0.0, 1.0);
+}
 
 /**
  * sets the control points of the BezierCurve to the four points in the vlist
@@ -38,6 +65,19 @@ void bezierCurve_set(BezierCurve *b, Point *vlist) {
     for (int i = 0; i < 4; i++) {
         point_copy(&(b->ctrls[i]), &(vlist[i]));
     }
+}
+
+void bezierCurve_copy(BezierCurve *to, BezierCurve *from) {
+    if (!to || !from) {
+        printf("bezierCurve_copy(): passed NULL pointer as argument.\n");
+        return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        point_copy(&(to->ctrls[i]), &(from->ctrls[i]));
+    }
+    to->subdivisions = from->subdivisions;
+    to->zBuffer = from->zBuffer;
 }
 
 /**
@@ -145,7 +185,7 @@ void bezierCurve_draw(BezierCurve *b, Image *src, Color c) {
     left->ctrls[3].val[1] = (left->ctrls[2].val[1] + right->ctrls[1].val[1]) / 2;
     left->ctrls[3].val[2] = (left->ctrls[2].val[2] + right->ctrls[1].val[2]) / 2;
     point_copy(&(right->ctrls[0]), &(left->ctrls[3]));
-    
+
     // Recursively draw each side:
     bezierCurve_draw(left, src, c);
     bezierCurve_draw(right, src, c);

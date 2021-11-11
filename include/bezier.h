@@ -12,11 +12,13 @@
 typedef struct {
     Point ctrls[4]; // 4 control points for a curve
     int zBuffer;
+    int subdivisions; // Subdivision cutoff. Used by module_BezierCurve
 } BezierCurve;
 
 typedef struct {
     Point ctrls[16]; // 16 control points for a surface
     int zBuffer;
+    int subdivisions; // Subdivision cutoff. Used by module_BezierSurface
 } BezierSurface;
 
 /* BEZIER CURVE AND SURFACE FUNCTIONS */
@@ -28,5 +30,5 @@ void bezierCurve_zBuffer(BezierCurve *p, int flag);
 void bezierSurface_zBuffer(BezierCurve *p, int flag);
 void bezierCurve_draw(BezierCurve *b, Image *src, Color c);
 void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions, int safetyFlag, Image *src, Color c);
-
+void bezierCurve_copy(BezierCurve *to, BezierCurve *from);
 #endif
