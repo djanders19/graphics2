@@ -182,6 +182,12 @@ test7_tetrahedron: $(ODIR)/test7_tetrahedron.o
 test7_octahedron: $(ODIR)/test7_octahedron.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test7_curves: $(ODIR)/test7_curves.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_sail: $(ODIR)/test7_sail.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 animated_bezier: $(ODIR)/animated_bezier.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
