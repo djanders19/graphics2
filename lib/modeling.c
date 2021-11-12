@@ -956,60 +956,115 @@ void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid)
     module_bezierSurface(m, &rDown, divisions-1, solid);
 }
 
+/**
+ * Makes a unit cylinder at the origin. 
+ * 
+ * This function is directly adapted from code provided by Bruce Maxwell in the 
+ * file test6d.c.
+ */
 void module_cylinder(Module *md, int sides) {
     Polygon p;
     Point xtop, xbot;
     double x1, x2, z1, z2;
     int i;
 
-      polygon_init( &p );
-  point_set3D( &xtop, 0, 1.0, 0.0 );
-  point_set3D( &xbot, 0, 0.0, 0.0 );
+    polygon_init( &p );
+    point_set3D( &xtop, 0, 1.0, 0.0 );
+    point_set3D( &xbot, 0, 0.0, 0.0 );
 
-  // make a fan for the top and bottom sides
-  // and quadrilaterals for the sides
-  for(i=0;i<sides;i++) {
-    Point pt[4];
+    // make a fan for the top and bottom sides
+    // and quadrilaterals for the sides
+    for(i=0;i<sides;i++) {
+      Point pt[4];
 
-    // Make the fan
-    // Top:
-    // Define x/z for the fan points on outside of cylinder
-    x1 = cos( i * M_PI * 2.0 / sides );
-    z1 = sin( i * M_PI * 2.0 / sides );
-    x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
-    z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+      // Make the fan
+      // Top:
+      // Define x/z for the fan points on outside of cylinder
+      x1 = cos( i * M_PI * 2.0 / sides );
+      z1 = sin( i * M_PI * 2.0 / sides );
+      x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+      z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
 
-    // copy those points into pt[]
-    point_copy( &pt[0], &xtop );
-    point_set3D( &pt[1], x1, 1.0, z1 );
-    point_set3D( &pt[2], x2, 1.0, z2 );
+      // copy those points into pt[]
+      point_copy( &pt[0], &xtop );
+      point_set3D( &pt[1], x1, 1.0, z1 );
+      point_set3D( &pt[2], x2, 1.0, z2 );
 
-    // Set a polygon for the fan:
-    polygon_set( &p, 3, pt );
-    module_polygon( md, &p );
+      // Set a polygon for the fan:
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
 
-    // Do the same for the bottom:
-    point_copy( &pt[0], &xbot );
-    point_set3D( &pt[1], x1, 0.0, z1 );
-    point_set3D( &pt[2], x2, 0.0, z2 );
+      // Do the same for the bottom:
+      point_copy( &pt[0], &xbot );
+      point_set3D( &pt[1], x1, 0.0, z1 );
+      point_set3D( &pt[2], x2, 0.0, z2 );
 
-    polygon_set( &p, 3, pt );
-    module_polygon( md, &p );
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
 
-    // Link the top and bottom with a rectangular side
-    point_set3D( &pt[0], x1, 0.0, z1 );
-    point_set3D( &pt[1], x2, 0.0, z2 );
-    point_set3D( &pt[2], x2, 1.0, z2 );
-    point_set3D( &pt[3], x1, 1.0, z1 );
-    
-    polygon_set( &p, 4, pt );
-    module_polygon( md, &p );
-  }
+      // Link the top and bottom with a rectangular side
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
+      point_set3D( &pt[2], x2, 1.0, z2 );
+      point_set3D( &pt[3], x1, 1.0, z1 );
 
-  polygon_clear( &p );
+      polygon_set( &p, 4, pt );
+      module_polygon( md, &p );
+    }
+
+    polygon_clear( &p );
 }
 
-void module_pyramid(Module *md, int solid);
+/**
+ * Insert a unit cone with <sides> subdivisions centered at the origin. Note
+ * that this does not create a smooth surface, but rather a subdivision surface.
+ * So, for instance, setting sides to 4 will create a unit pyramid.
+ * 
+ * Adapted from Cylinder code provide by Bruce Maxwell.
+ */
+void module_cone(Module *md, int sides) {
+    Polygon p;
+    Point xtop, xbot;
+    double x1, x2, z1, z2;
+    int i;
+
+    polygon_init( &p );
+    point_set3D( &xtop, 0, 1.0, 0.0 );
+    point_set3D( &xbot, 0, 0.0, 0.0 );
+
+    // make a fan for the top and bottom sides
+    // and triangles for the sides
+    for(i=0;i<sides;i++) {
+      Point pt[4];
+
+      // Make the fan
+      // bottom:
+      // Define x/z for the fan points on outside of cylinder
+      x1 = cos( i * M_PI * 2.0 / sides );
+      z1 = sin( i * M_PI * 2.0 / sides );
+      x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+      z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+
+      // copy those points into pt[]
+      point_copy( &pt[0], &xbot );
+      point_set3D( &pt[1], x1, 0.0, z1 );
+      point_set3D( &pt[2], x2, 0.0, z2 );
+
+      // Set a polygon for the fan:
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
+
+      // Link the top and bottom with a triangular side
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
+      point_copy( &pt[2], &xtop);
+
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
+    }
+
+    polygon_clear( &p );
+}
 void module_sphere(Module *md, int solid);
 
 /* SHADING/COLOR MODULE FUNCTIONS */
