@@ -62,6 +62,7 @@ Element *element_init(ObjectType type, void *obj);
 void element_delete(Element *e);
 Module *module_create(void);
 void module_clear(Module *md);
+void module_free(Module *md);
 void module_delete(Module *md);
 void module_insert(Module *md, Element *e);
 void module_module(Module *md, Module *sub);
@@ -89,6 +90,8 @@ void module_bezierCurve(Module *m, BezierCurve *b, int divisions);
 void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid);
 void module_cylinder(Module *md, int sides);
 void module_cone(Module *md, int sides);
+void module_tetrahedron(Module *md);
+void module_octahedron(Module *md);
 void module_teapot(Module *md, int subdivisions);
 
 /* SHADING/COLOR MODULE FUNCTIONS */

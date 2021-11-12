@@ -174,6 +174,31 @@ void module_clear(Module *md) {
     md->tail = NULL;
 }
 
+void module_free(Module *md) {
+    if (!md) {
+        printf("module_clear(): passed null pointer.\n");
+        return;
+    }
+    Element *tempHead;
+
+    while (md->head) {
+        tempHead = md->head;
+        md->head = md->head->next;
+        tempHead->next = NULL;
+        if (tempHead->type == ObjModule) {
+            printf("AA\n");
+            module_free(tempHead->obj.module);
+        }
+        element_delete(tempHead);
+    }
+    md->head = NULL;
+    md->tail = NULL;
+}
+
+/**
+ * Clear the module's list of elements, and free submodules.
+ */
+
 /**
  * Free all of the memory associated with a module, including the memory pointed
  * to by md.
@@ -546,7 +571,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjIdentity:
-            printf("drawing identity\n");
+            // printf("drawing identity\n");
             // Set LTM to the identity matrix
             matrix_identity(LTM);
             break;
@@ -556,8 +581,8 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             //printf("recursively drawing module\n");
             Matrix *tempGTM = malloc(sizeof(Matrix));
             matrix_multiply(GTM, LTM, tempGTM);
-            printf("tempGTM:\n");
-            matrix_print(tempGTM, stdout);
+            // printf("tempGTM:\n");
+            // matrix_print(tempGTM, stdout);
 
             // tempDS = DS
             DrawState *tempDS = malloc(sizeof(DrawState));
@@ -565,7 +590,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
 
             // recursively call module_draw
             module_draw(i->obj.module, VTM, tempGTM, tempDS, lighting, src);
-            printf("Done drawing module\n");
+            // printf("Done drawing module\n");
             free(tempGTM);
             free(tempDS);
             break;
@@ -1046,12 +1071,12 @@ void module_cone(Module *md, int sides) {
       z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
 
       // copy those points into pt[]
-      point_copy( &pt[0], &xbot );
-      point_set3D( &pt[1], x1, 0.0, z1 );
-      point_set3D( &pt[2], x2, 0.0, z2 );
+    //   point_copy( &pt[0], &xbot );
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
 
       // Set a polygon for the fan:
-      polygon_set( &p, 3, pt );
+      polygon_set( &p, 2, pt );
       module_polygon( md, &p );
 
       // Link the top and bottom with a triangular side
@@ -1066,7 +1091,71 @@ void module_cone(Module *md, int sides) {
     polygon_clear( &p );
 }
 
+/**
+ * Inserts a tetrahedron into the module.
+ */
+void module_tetrahedron(Module *md) {
+    const float inverseSqrt2 = 0.70710678118;
+    Point pts[4] = {{{1.0, 0.0, -inverseSqrt2, 1.0}}, 
+                    {{-1.0, 0.0, -inverseSqrt2, 1.0}},
+                    {{0.0, 1.0, inverseSqrt2, 1.0}},
+                    {{0.0, -1.0, inverseSqrt2, 1.0}}};
+    Polygon p;
+    polygon_init(&p);
+    Point vlist[3];
+    polygon_set(&p, 3, pts);
+    module_polygon(md, &p);
 
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[2]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[1]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    polygon_clear(&p);
+}
+
+/**
+ * Inserts an octahedron into the module
+ */
+void module_octahedron(Module *md){
+    Point pts[6] = {{{1.0,  0.0,  0.0, 1.0}}, 
+                    {{-1.0, 0.0,  0.0, 1.0}},
+                    {{0.0,  1.0,  0.0, 1.0}},
+                    {{0.0, -1.0,  0.0, 1.0}},
+                    {{0.0,  0.0,  1.0, 1.0}}, 
+                    {{0.0,  0.0, -1.0, 1.0}}};
+
+    Polygon p;
+    polygon_init(&p);
+    Point vlist[3];
+
+    // top, 1st side
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[1]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[4]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    polygon_clear(&p);
+}
+
+/**
+ * Adds the Utah Teapot to the module, defined by a bunch of Bezier Surfaces.
+ * 
+ * Vertices were pulled from:
+ * https://www.sjbaker.org/wiki/index.php?title=The_History_of_The_Teapot
+ */
 void module_teapot(Module *md, int subdivisions) {
     BezierSurface s;
 

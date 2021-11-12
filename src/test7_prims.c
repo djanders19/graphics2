@@ -12,6 +12,7 @@
 int main(int argc, char *argv[]) {
     Image *src;
     Module *scene;
+    int frame;
         
     View3D view;
     Matrix vtm, gtm;
@@ -20,8 +21,8 @@ int main(int argc, char *argv[]) {
     Color White = { { 1.0, 1.0, 1.0 } };
 
     // set up the view
-    point_set3D( &(view.vrp), 10,  2.2, 0);
-    vector_set( &(view.vpn), -10, -0,  -0);
+    point_set3D( &(view.vrp), 20,  6, 0);
+    vector_set( &(view.vpn), -20, -4,  -0);
     // point_set3D( &(view.vrp), 1,  12,  1);
     // vector_set( &(view.vpn), -1, -12, -1);
     vector_set( &(view.vup), 0, 1, 0 );
@@ -39,16 +40,34 @@ int main(int argc, char *argv[]) {
     scene = module_create();
     module_color(scene, &White);
     // module_cylinder(scene, 10);
-    //module_cone(scene, 3);
+    // module_cone(scene, 3);
     module_teapot(scene, 2);
+    module_identity(scene);
+
+    module_translate(scene, 3, 2, 0);
+    module_tetrahedron(scene);
+
+    module_identity(scene);
+    module_translate(scene, -3, 0, 0);
+    // module_octahedron(scene);
 
 
     src = image_create( 360, 640 );
     ds = drawstate_create();
     ds->shade = ShadeFrame;
 
-    module_draw( scene, &vtm, &gtm, ds, NULL, src );
-    image_write( src, "testing_3d_prims.ppm" );
+    // Create the animation by adjusting the GTM
+	for(frame=0;frame<60;frame++) {
+		char buffer[256];
+		
+		matrix_rotateY(&gtm, cos(M_PI/30.0), sin(M_PI/30.0) );
+		module_draw( scene, &vtm, &gtm, ds, NULL, src );
+
+		sprintf(buffer, "teapot-frame%03d.ppm", frame);
+		image_write(src, buffer);
+		image_reset(src);
+	}
+
     module_delete(scene);
 
     free(ds);
