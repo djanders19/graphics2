@@ -1,6 +1,12 @@
+/**
+ * David J Anderson - Nov 2021
+ * 
+ * This file implements bezier.h, which defines functions and datatypes for
+ * drawing BezierCurves and Bezier Surfaces in an image using de Casteljau's
+ * algorithm.
+ */
 #include "graphicslib.h"
 #include "bezier.h"
-
 
 /**
  * Set the zBuffer flag to 1 and the curve points to the x-axis between 0 and 1.
@@ -291,38 +297,4 @@ void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions,
     free(l);
     free(left);
     free(right);
-}
-
-void subdivide(Point *vals, Point *toReturn) {
-    // Define left curve ctl points:
-    point_copy(&(toReturn[0]), &(vals[0])); // q0
-    toReturn[1].val[0] = (vals[0].val[0] + vals[1].val[0]) / 2;// q1x
-    toReturn[1].val[1] = (vals[0].val[1] + vals[1].val[1]) / 2;// q1y
-    toReturn[1].val[2] = (vals[0].val[2] + vals[1].val[2]) / 2;// q1z
-    
-    toReturn[2].val[0] = ((toReturn[1].val[0]) / 2) +
-                            ((vals[1].val[0] + vals[2].val[0]) / 4);
-    toReturn[2].val[1] = ((toReturn[1].val[1]) / 2) +
-                            ((vals[1].val[1] + vals[2].val[1]) / 4);
-    toReturn[2].val[2] = ((toReturn[1].val[2]) / 2) +
-                            ((vals[1].val[2] + vals[2].val[2]) / 4);
-
-    // Define right curve ctl points:
-    point_copy(&(toReturn[7]), &(vals[3])); // r3
-    toReturn[6].val[0] = (vals[2].val[0] + vals[3].val[0]) / 2;// r1x
-    toReturn[6].val[1] = (vals[2].val[1] + vals[3].val[1]) / 2;// r1y
-    toReturn[6].val[2] = (vals[2].val[2] + vals[3].val[2]) / 2;// r1y
-
-    toReturn[5].val[0] = ((toReturn[2].val[0]) / 2) +
-                            ((vals[1].val[0] + vals[2].val[0]) / 4);
-    toReturn[5].val[1] = ((toReturn[2].val[1]) / 2) +
-                            ((vals[1].val[1] + vals[2].val[1]) / 4);
-    toReturn[5].val[2] = ((toReturn[2].val[2]) / 2) +
-                            ((vals[1].val[2] + vals[2].val[2]) / 4);
-
-    // Define point where two curves meet:
-    toReturn[3].val[0] = (toReturn[2].val[0] + toReturn[5].val[0]) / 2;
-    toReturn[3].val[1] = (toReturn[2].val[1] + toReturn[5].val[1]) / 2;
-    toReturn[3].val[2] = (toReturn[2].val[2] + toReturn[5].val[2]) / 2;
-    point_copy(&(toReturn[4]), &(toReturn[3]));
 }

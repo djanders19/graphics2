@@ -1136,14 +1136,43 @@ void module_octahedron(Module *md){
     polygon_init(&p);
     Point vlist[3];
 
-    // top, 1st side
+    // top
     point_copy(&vlist[0], &pts[0]);
-    point_copy(&vlist[1], &pts[1]);
+    point_copy(&vlist[1], &pts[4]);
+    point_copy(&vlist[2], &pts[2]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[5]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    // Bottom:
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[4]);
     point_copy(&vlist[2], &pts[3]);
     polygon_set(&p, 3, vlist);
     module_polygon(md, &p);
 
-    point_copy(&vlist[0], &pts[4]);
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[5]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
     polygon_set(&p, 3, vlist);
     module_polygon(md, &p);
 

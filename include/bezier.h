@@ -35,7 +35,4 @@ void bezierCurve_draw_with_subdivisions(BezierCurve *b, int divisions, int safet
 void bezierCurve_copy(BezierCurve *to, BezierCurve *from);
 void bezierSurface_copy(BezierSurface *to, BezierSurface *from);
 
-/* HELPER FUNCTIONS */
-void subdivide(Point *vals, Point *toReturn);
-
 #endif

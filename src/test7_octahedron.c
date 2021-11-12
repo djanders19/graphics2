@@ -1,8 +1,7 @@
 /**
  * David J. Anderson - November 2021
  * 
- * Tests the 3D primitives by drawing a rotating scene containing a cone, a
- * cylinder, a tetrahedron, an octahedron, a cube, and the Utah Teapot.
+ * Tests the ability to draw octahedrons.
  */
 
 #include <stdio.h>
@@ -40,26 +39,22 @@ int main(int argc, char *argv[]) {
     scene = module_create();
     module_color(scene, &White);
     module_translate(scene, 0, 1, 6);
-    module_cylinder(scene, 10);
+    module_octahedron(scene);
 
     module_identity(scene);
     module_translate(scene, 0, 1, -6);
-    module_cone(scene, 10);
+    module_octahedron(scene);
 
     module_identity(scene);
-    module_teapot(scene, 2);
+    module_octahedron(scene);
 
     module_identity(scene);
     module_translate(scene, 4, -1, 0);
-    module_tetrahedron(scene);
+    module_octahedron(scene);
 
     module_identity(scene);
     module_translate(scene, -4, -1, 0);
     module_octahedron(scene);
-
-    module_identity(scene);
-    module_translate(scene, -4, 4, 0);
-    module_cube(scene, 0);
 
 
     src = image_create( 360, 640 );
@@ -73,7 +68,7 @@ int main(int argc, char *argv[]) {
 		matrix_rotateY(&gtm, cos(M_PI/30.0), sin(M_PI/30.0) );
 		module_draw( scene, &vtm, &gtm, ds, NULL, src );
 
-		sprintf(buffer, "teapot-frame%03d.ppm", frame);
+		sprintf(buffer, "octahedron-frame%03d.ppm", frame);
 		image_write(src, buffer);
 		image_reset(src);
 	}
