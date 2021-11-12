@@ -20,8 +20,10 @@ int main(int argc, char *argv[]) {
     Color White = { { 1.0, 1.0, 1.0 } };
 
     // set up the view
-    point_set3D( &(view.vrp), 5,  5,  10);
-    vector_set( &(view.vpn), -5, -5, -10 );
+    point_set3D( &(view.vrp), 10,  2.2, 0);
+    vector_set( &(view.vpn), -10, -0,  -0);
+    // point_set3D( &(view.vrp), 1,  12,  1);
+    // vector_set( &(view.vpn), -1, -12, -1);
     vector_set( &(view.vup), 0, 1, 0 );
     view.d = 2.2;
     view.du = 1.6;
@@ -37,7 +39,8 @@ int main(int argc, char *argv[]) {
     scene = module_create();
     module_color(scene, &White);
     // module_cylinder(scene, 10);
-    module_cone(scene, 3);
+    //module_cone(scene, 3);
+    module_teapot(scene, 2);
 
 
     src = image_create( 360, 640 );
