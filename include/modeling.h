@@ -87,6 +87,9 @@ void module_cube(Module *md, int solid);
 /* BEZIER CURVE AND SURFACE FUNCTIONS */
 void module_bezierCurve(Module *m, BezierCurve *b, int divisions);
 void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid);
+void module_cylinder(Module *md, int sides);
+void module_pyramid(Module *md, int solid);
+void module_sphere(Module *md, int solid);
 
 /* SHADING/COLOR MODULE FUNCTIONS */
 void module_color(Module *md, Color *c);

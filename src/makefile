@@ -173,6 +173,9 @@ test7b: $(ODIR)/test7b.o
 test7c: $(ODIR)/test7c.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test7_prims: $(ODIR)/test7_prims.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 animated_bezier: $(ODIR)/animated_bezier.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
