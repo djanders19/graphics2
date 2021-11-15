@@ -38,7 +38,7 @@ _DEPS = ppmIO.h
 DEPS = $(patsubst %,$(INCDIR)/%,$(_DEPS))
 
 # put a list of all the object files (with .o endings)
-_COMMON = ppmIO.o color.o image.o mandelbrot.o julia.o horizontalSin.o graphics.o polygon.o list.o matrix.o views.o drawstate.o modeling.o
+_COMMON = ppmIO.o color.o image.o mandelbrot.o julia.o horizontalSin.o graphics.o polygon.o list.o matrix.o views.o drawstate.o bezier.o modeling.o
 
 # convert them to point to the right place
 COMMON = $(patsubst %,$(ODIR)/%,$(_COMMON))

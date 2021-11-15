@@ -101,6 +101,11 @@ Element *element_init(ObjectType type, void *obj) {
         toReturn->type = ObjModule;
         toReturn->obj.module = obj;
         break;
+    
+    case ObjBezier:
+        toReturn->type = ObjBezier;
+        bezierCurve_copy(&(toReturn->obj.curve), ((BezierCurve *) obj));
+        break;
 
     default:
         printf("element_init(): passed unknown object type\n");
@@ -168,6 +173,31 @@ void module_clear(Module *md) {
     md->head = NULL;
     md->tail = NULL;
 }
+
+void module_free(Module *md) {
+    if (!md) {
+        printf("module_clear(): passed null pointer.\n");
+        return;
+    }
+    Element *tempHead;
+
+    while (md->head) {
+        tempHead = md->head;
+        md->head = md->head->next;
+        tempHead->next = NULL;
+        if (tempHead->type == ObjModule) {
+            printf("AA\n");
+            module_free(tempHead->obj.module);
+        }
+        element_delete(tempHead);
+    }
+    md->head = NULL;
+    md->tail = NULL;
+}
+
+/**
+ * Clear the module's list of elements, and free submodules.
+ */
 
 /**
  * Free all of the memory associated with a module, including the memory pointed
@@ -439,7 +469,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjPoint: ;
-            printf("drawing point\n");
+            //printf("drawing point\n");
             Point *x = malloc(sizeof(Point));
             // Copy the point data in E to X
             point_copy(x, &(i->obj.point));
@@ -473,9 +503,9 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
 
             // Normalize L by the homogenous coord
             line_normalize(l);
-            printf("drawing line (%f %f) to (%f %f) with color (%f %f %f)\n",\
+            /*printf("drawing line (%f %f) to (%f %f) with color (%f %f %f)\n",\
             l->a.val[0], l->a.val[1], l->b.val[0], l->b.val[1],\
-            ds->color.c[0], ds->color.c[1], ds->color.c[2]);
+            ds->color.c[0], ds->color.c[1], ds->color.c[2]);*/
             // Draw L using DS->color
             line_draw(l, src, ds->color);
             free(l);
@@ -506,7 +536,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjPolygon: ;
-            printf("drawing polygon\n");
+            //printf("drawing polygon\n");
             // Copy the polygon data in E to P
             Polygon* p = polygon_create();
             polygon_copy(p, &(i->obj.polygon));
@@ -535,24 +565,24 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
 
         case ObjMatrix:
-            printf("drawing matrix\n");
+            //printf("drawing matrix\n");
             // Left multiply LTM by Matrix field of E (LTM = E * LTM)
             matrix_multiply(&(i->obj.matrix), LTM, LTM);
             break;
         
         case ObjIdentity:
-            printf("drawing identity\n");
+            // printf("drawing identity\n");
             // Set LTM to the identity matrix
             matrix_identity(LTM);
             break;
         
         case ObjModule: ;
             // TM = GTM * LTM
-            printf("recursively drawing module\n");
+            //printf("recursively drawing module\n");
             Matrix *tempGTM = malloc(sizeof(Matrix));
             matrix_multiply(GTM, LTM, tempGTM);
-            printf("tempGTM:\n");
-            matrix_print(tempGTM, stdout);
+            // printf("tempGTM:\n");
+            // matrix_print(tempGTM, stdout);
 
             // tempDS = DS
             DrawState *tempDS = malloc(sizeof(DrawState));
@@ -560,9 +590,27 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
 
             // recursively call module_draw
             module_draw(i->obj.module, VTM, tempGTM, tempDS, lighting, src);
-            printf("Done drawing module\n");
+            // printf("Done drawing module\n");
             free(tempGTM);
             free(tempDS);
+            break;
+
+        case ObjBezier: ;
+            //printf("drawing curve\n");
+            // Copy the polygon data in E to P
+            BezierCurve* b = malloc(sizeof(BezierCurve));
+            bezierCurve_init(b);
+            bezierCurve_copy(b, &(i->obj.curve));
+
+            for (int point = 0; point < 4; point++) {
+                matrix_xformPoint(LTM, &b->ctrls[point], &b->ctrls[point]);
+                matrix_xformPoint(GTM, &b->ctrls[point], &b->ctrls[point]);
+                matrix_xformPoint(VTM, &b->ctrls[point], &b->ctrls[point]);
+                point_normalize(&b->ctrls[point]);
+            }
+
+            bezierCurve_draw_with_subdivisions(b, b->subdivisions, 0, src, ds->color);
+            free(b);
             break;
 
         default:
@@ -683,7 +731,7 @@ void module_rotateY(Module *md, double cth, double sth) {
  * Add a rotation that orients to the orthonormal axes u, v and w.
  */
 void module_rotateXYZ(Module *md, Vector *u, Vector *v, Vector *w) {
-    if (!md) {
+    if (!md || !u || !v || !w) {
         printf("module_rotateXYZ(): passed null pointer.\n");
         return;
     }
@@ -795,6 +843,545 @@ void module_cube(Module *md, int solid) {
             polygon_free(&(side[i])); // free the polygon
         }
     }
+}
+
+/* BEZIER CURVE AND SURFACE FUNCTIONS */
+void module_bezierCurve(Module *m, BezierCurve *b, int divisions) {
+    if (!m || !b) {
+        printf("module_bezierCurve(): passed null pointer.\n");
+        return;
+    }
+
+    b->subdivisions = divisions;
+    Element *e = element_init(ObjBezier, b);
+    if (!m->tail) {
+        m->head = e;
+        m->tail = e;
+    } else {
+        m->tail->next = e; // Set the last element in the list to point to e
+        m->tail = e; // Set the last element to be e.
+    }
+}
+
+void module_bezierSurface(Module *m, BezierSurface *b, int divisions, int solid) {
+    b->subdivisions = divisions;
+    Line l;
+    if (divisions <= 0) {
+        switch(solid) {
+            case 0:
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 1; j < 4; j++) {
+                        line_set(&l, b->ctrls[i*4 + j - 1], b->ctrls[i*4 + j]);
+                        module_line(m, &l);
+                        line_set(&l, b->ctrls[(j-1)*4 + i], b->ctrls[j*4 + i]);                        
+                        module_line(m, &l);
+                    }
+                }
+                return;
+
+            default:
+                return;
+        }
+    }
+    
+    BezierSurface q, r;
+    bezierSurface_init(&q);
+    bezierSurface_copy(&q, b); //TODO: cleanup this copy
+    bezierSurface_init(&r);
+    bezierSurface_copy(&r, b);
+
+    // Subdivide in x:
+    for (int i = 0; i < 4; i++) {
+        q.ctrls[i*4 + 1].val[0] = (b->ctrls[i*4].val[0] + b->ctrls[i*4 + 1].val[0]) / 2;
+        q.ctrls[i*4 + 1].val[1] = (b->ctrls[i*4].val[1] + b->ctrls[i*4 + 1].val[1]) / 2;
+        q.ctrls[i*4 + 1].val[2] = (b->ctrls[i*4].val[2] + b->ctrls[i*4 + 1].val[2]) / 2;
+
+        q.ctrls[i*4 + 2].val[0] = (q.ctrls[i*4 + 1].val[0] / 2) + (b->ctrls[i*4 + 1].val[0] + b->ctrls[i*4 + 2].val[0]) / 4;
+        q.ctrls[i*4 + 2].val[1] = (q.ctrls[i*4 + 1].val[1] / 2) + (b->ctrls[i*4 + 1].val[1] + b->ctrls[i*4 + 2].val[1]) / 4;
+        q.ctrls[i*4 + 2].val[2] = (q.ctrls[i*4 + 1].val[2] / 2) + (b->ctrls[i*4 + 1].val[2] + b->ctrls[i*4 + 2].val[2]) / 4;
+
+        r.ctrls[i*4 + 2].val[0] = (b->ctrls[i*4 + 2].val[0] + b->ctrls[i*4 + 3].val[0]) / 2;
+        r.ctrls[i*4 + 2].val[1] = (b->ctrls[i*4 + 2].val[1] + b->ctrls[i*4 + 3].val[1]) / 2;
+        r.ctrls[i*4 + 2].val[2] = (b->ctrls[i*4 + 2].val[2] + b->ctrls[i*4 + 3].val[2]) / 2;
+
+        r.ctrls[i*4 + 1].val[0] = (r.ctrls[i*4 + 2].val[0] / 2) + (b->ctrls[i*4 + 1].val[0] + b->ctrls[i*4 + 2].val[0]) / 4;
+        r.ctrls[i*4 + 1].val[1] = (r.ctrls[i*4 + 2].val[1] / 2) + (b->ctrls[i*4 + 1].val[1] + b->ctrls[i*4 + 2].val[1]) / 4;
+        r.ctrls[i*4 + 1].val[2] = (r.ctrls[i*4 + 2].val[2] / 2) + (b->ctrls[i*4 + 1].val[2] + b->ctrls[i*4 + 2].val[2]) / 4;
+
+        q.ctrls[i*4 + 3].val[0] = (q.ctrls[i*4 + 2].val[0] + r.ctrls[i*4 + 1].val[0]) / 2;
+        q.ctrls[i*4 + 3].val[1] = (q.ctrls[i*4 + 2].val[1] + r.ctrls[i*4 + 1].val[1]) / 2;
+        q.ctrls[i*4 + 3].val[2] = (q.ctrls[i*4 + 2].val[2] + r.ctrls[i*4 + 1].val[2]) / 2;
+
+        point_copy(&r.ctrls[i*4 + 0], &q.ctrls[i*4 + 3]);
+    }
+
+    BezierSurface qUp, qDown, rUp, rDown;
+    bezierSurface_init(&qUp);
+    bezierSurface_copy(&qUp, &q); //TODO: cleanup this copy
+    bezierSurface_init(&rUp);
+    bezierSurface_copy(&rUp, &r);
+    bezierSurface_init(&qDown);
+    bezierSurface_copy(&qDown, &q); //TODO: cleanup this copy
+    bezierSurface_init(&rDown);
+    bezierSurface_copy(&rDown, &r);
+
+    // Subdivide q in z:
+    for (int i = 0; i < 4; i++) {
+        qUp.ctrls[i + 1 * 4].val[0] = (q.ctrls[i].val[0] + q.ctrls[i + 1 * 4].val[0]) / 2;
+        qUp.ctrls[i + 1 * 4].val[1] = (q.ctrls[i].val[1] + q.ctrls[i + 1 * 4].val[1]) / 2;
+        qUp.ctrls[i + 1 * 4].val[2] = (q.ctrls[i].val[2] + q.ctrls[i + 1 * 4].val[2]) / 2;
+
+        qUp.ctrls[i + 2 * 4].val[0] = (qUp.ctrls[i + 1 * 4].val[0] / 2) + (q.ctrls[i + 1 * 4].val[0] + q.ctrls[i + 2 * 4].val[0]) / 4;
+        qUp.ctrls[i + 2 * 4].val[1] = (qUp.ctrls[i + 1 * 4].val[1] / 2) + (q.ctrls[i + 1 * 4].val[1] + q.ctrls[i + 2 * 4].val[1]) / 4;
+        qUp.ctrls[i + 2 * 4].val[2] = (qUp.ctrls[i + 1 * 4].val[2] / 2) + (q.ctrls[i + 1 * 4].val[2] + q.ctrls[i + 2 * 4].val[2]) / 4;
+
+        qDown.ctrls[i + 2 * 4].val[0] = (q.ctrls[i + 2 * 4].val[0] + q.ctrls[i + 3 * 4].val[0]) / 2;
+        qDown.ctrls[i + 2 * 4].val[1] = (q.ctrls[i + 2 * 4].val[1] + q.ctrls[i + 3 * 4].val[1]) / 2;
+        qDown.ctrls[i + 2 * 4].val[2] = (q.ctrls[i + 2 * 4].val[2] + q.ctrls[i + 3 * 4].val[2]) / 2;
+
+        qDown.ctrls[i + 1 * 4].val[0] = (qDown.ctrls[i + 2 * 4].val[0] / 2) + (q.ctrls[i + 1 * 4].val[0] + q.ctrls[i + 2 * 4].val[0]) / 4;
+        qDown.ctrls[i + 1 * 4].val[1] = (qDown.ctrls[i + 2 * 4].val[1] / 2) + (q.ctrls[i + 1 * 4].val[1] + q.ctrls[i + 2 * 4].val[1]) / 4;
+        qDown.ctrls[i + 1 * 4].val[2] = (qDown.ctrls[i + 2 * 4].val[2] / 2) + (q.ctrls[i + 1 * 4].val[2] + q.ctrls[i + 2 * 4].val[2]) / 4;
+
+        qUp.ctrls[i + 3 * 4].val[0] = (qUp.ctrls[i + 2 * 4].val[0] + qDown.ctrls[i + 1 * 4].val[0]) / 2;
+        qUp.ctrls[i + 3 * 4].val[1] = (qUp.ctrls[i + 2 * 4].val[1] + qDown.ctrls[i + 1 * 4].val[1]) / 2;
+        qUp.ctrls[i + 3 * 4].val[2] = (qUp.ctrls[i + 2 * 4].val[2] + qDown.ctrls[i + 1 * 4].val[2]) / 2;
+
+        point_copy(&qDown.ctrls[i], &qUp.ctrls[i + 3 * 4]);
+    }
+
+    // Subdivide r in z:
+    for (int i = 0; i < 4; i++) {
+        rUp.ctrls[i + 1 * 4].val[0] = (r.ctrls[i].val[0] + r.ctrls[i + 1 * 4].val[0]) / 2;
+        rUp.ctrls[i + 1 * 4].val[1] = (r.ctrls[i].val[1] + r.ctrls[i + 1 * 4].val[1]) / 2;
+        rUp.ctrls[i + 1 * 4].val[2] = (r.ctrls[i].val[2] + r.ctrls[i + 1 * 4].val[2]) / 2;
+
+        rUp.ctrls[i + 2 * 4].val[0] = (rUp.ctrls[i + 1 * 4].val[0] / 2) + (r.ctrls[i + 1 * 4].val[0] + r.ctrls[i + 2 * 4].val[0]) / 4;
+        rUp.ctrls[i + 2 * 4].val[1] = (rUp.ctrls[i + 1 * 4].val[1] / 2) + (r.ctrls[i + 1 * 4].val[1] + r.ctrls[i + 2 * 4].val[1]) / 4;
+        rUp.ctrls[i + 2 * 4].val[2] = (rUp.ctrls[i + 1 * 4].val[2] / 2) + (r.ctrls[i + 1 * 4].val[2] + r.ctrls[i + 2 * 4].val[2]) / 4;
+
+        rDown.ctrls[i + 2 * 4].val[0] = (r.ctrls[i + 2 * 4].val[0] + r.ctrls[i + 3 * 4].val[0]) / 2;
+        rDown.ctrls[i + 2 * 4].val[1] = (r.ctrls[i + 2 * 4].val[1] + r.ctrls[i + 3 * 4].val[1]) / 2;
+        rDown.ctrls[i + 2 * 4].val[2] = (r.ctrls[i + 2 * 4].val[2] + r.ctrls[i + 3 * 4].val[2]) / 2;
+
+        rDown.ctrls[i + 1 * 4].val[0] = (rDown.ctrls[i + 2 * 4].val[0] / 2) + (r.ctrls[i + 1 * 4].val[0] + r.ctrls[i + 2 * 4].val[0]) / 4;
+        rDown.ctrls[i + 1 * 4].val[1] = (rDown.ctrls[i + 2 * 4].val[1] / 2) + (r.ctrls[i + 1 * 4].val[1] + r.ctrls[i + 2 * 4].val[1]) / 4;
+        rDown.ctrls[i + 1 * 4].val[2] = (rDown.ctrls[i + 2 * 4].val[2] / 2) + (r.ctrls[i + 1 * 4].val[2] + r.ctrls[i + 2 * 4].val[2]) / 4;
+
+        rUp.ctrls[i + 3 * 4].val[0] = (rUp.ctrls[i + 2 * 4].val[0] + rDown.ctrls[i + 1 * 4].val[0]) / 2;
+        rUp.ctrls[i + 3 * 4].val[1] = (rUp.ctrls[i + 2 * 4].val[1] + rDown.ctrls[i + 1 * 4].val[1]) / 2;
+        rUp.ctrls[i + 3 * 4].val[2] = (rUp.ctrls[i + 2 * 4].val[2] + rDown.ctrls[i + 1 * 4].val[2]) / 2;
+
+        point_copy(&rDown.ctrls[i], &rUp.ctrls[i + 3 * 4]);
+    }
+
+    module_bezierSurface(m, &qUp, divisions-1, solid);
+    module_bezierSurface(m, &qDown, divisions-1, solid);
+    module_bezierSurface(m, &rUp, divisions-1, solid);
+    module_bezierSurface(m, &rDown, divisions-1, solid);
+}
+
+/**
+ * Makes a unit cylinder at the origin. 
+ * 
+ * This function is directly adapted from code provided by Bruce Maxwell in the 
+ * file test6d.c.
+ */
+void module_cylinder(Module *md, int sides) {
+    Polygon p;
+    Point xtop, xbot;
+    double x1, x2, z1, z2;
+    int i;
+
+    polygon_init( &p );
+    point_set3D( &xtop, 0, 1.0, 0.0 );
+    point_set3D( &xbot, 0, 0.0, 0.0 );
+
+    // make a fan for the top and bottom sides
+    // and quadrilaterals for the sides
+    for(i=0;i<sides;i++) {
+      Point pt[4];
+
+      // Make the fan
+      // Top:
+      // Define x/z for the fan points on outside of cylinder
+      x1 = cos( i * M_PI * 2.0 / sides );
+      z1 = sin( i * M_PI * 2.0 / sides );
+      x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+      z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+
+      // copy those points into pt[]
+      point_copy( &pt[0], &xtop );
+      point_set3D( &pt[1], x1, 1.0, z1 );
+      point_set3D( &pt[2], x2, 1.0, z2 );
+
+      // Set a polygon for the fan:
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
+
+      // Do the same for the bottom:
+      point_copy( &pt[0], &xbot );
+      point_set3D( &pt[1], x1, 0.0, z1 );
+      point_set3D( &pt[2], x2, 0.0, z2 );
+
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
+
+      // Link the top and bottom with a rectangular side
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
+      point_set3D( &pt[2], x2, 1.0, z2 );
+      point_set3D( &pt[3], x1, 1.0, z1 );
+
+      polygon_set( &p, 4, pt );
+      module_polygon( md, &p );
+    }
+
+    polygon_clear( &p );
+}
+
+/**
+ * Insert a unit cone with <sides> subdivisions centered at the origin. Note
+ * that this does not create a smooth surface, but rather a subdivision surface.
+ * So, for instance, setting sides to 4 will create a unit pyramid.
+ * 
+ * Adapted from Cylinder code provide by Bruce Maxwell.
+ */
+void module_cone(Module *md, int sides) {
+    Polygon p;
+    Point xtop, xbot;
+    double x1, x2, z1, z2;
+    int i;
+
+    polygon_init( &p );
+    point_set3D( &xtop, 0, 1.0, 0.0 );
+    point_set3D( &xbot, 0, 0.0, 0.0 );
+
+    // make a fan for the top and bottom sides
+    // and triangles for the sides
+    for(i=0;i<sides;i++) {
+      Point pt[4];
+
+      // Make the fan
+      // bottom:
+      // Define x/z for the fan points on outside of cylinder
+      x1 = cos( i * M_PI * 2.0 / sides );
+      z1 = sin( i * M_PI * 2.0 / sides );
+      x2 = cos( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+      z2 = sin( ( (i+1)%sides ) * M_PI * 2.0 / sides );
+
+      // copy those points into pt[]
+    //   point_copy( &pt[0], &xbot );
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
+
+      // Set a polygon for the fan:
+      polygon_set( &p, 2, pt );
+      module_polygon( md, &p );
+
+      // Link the top and bottom with a triangular side
+      point_set3D( &pt[0], x1, 0.0, z1 );
+      point_set3D( &pt[1], x2, 0.0, z2 );
+      point_copy( &pt[2], &xtop);
+
+      polygon_set( &p, 3, pt );
+      module_polygon( md, &p );
+    }
+
+    polygon_clear( &p );
+}
+
+/**
+ * Inserts a tetrahedron into the module.
+ */
+void module_tetrahedron(Module *md) {
+    const float inverseSqrt2 = 0.70710678118;
+    Point pts[4] = {{{1.0, 0.0, -inverseSqrt2, 1.0}}, 
+                    {{-1.0, 0.0, -inverseSqrt2, 1.0}},
+                    {{0.0, 1.0, inverseSqrt2, 1.0}},
+                    {{0.0, -1.0, inverseSqrt2, 1.0}}};
+    Polygon p;
+    polygon_init(&p);
+    Point vlist[3];
+    polygon_set(&p, 3, pts);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[2]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[1]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    polygon_clear(&p);
+}
+
+/**
+ * Inserts an octahedron into the module
+ */
+void module_octahedron(Module *md){
+    Point pts[6] = {{{1.0,  0.0,  0.0, 1.0}}, 
+                    {{-1.0, 0.0,  0.0, 1.0}},
+                    {{0.0,  1.0,  0.0, 1.0}},
+                    {{0.0, -1.0,  0.0, 1.0}},
+                    {{0.0,  0.0,  1.0, 1.0}}, 
+                    {{0.0,  0.0, -1.0, 1.0}}};
+
+    Polygon p;
+    polygon_init(&p);
+    Point vlist[3];
+
+    // top
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[4]);
+    point_copy(&vlist[2], &pts[2]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[5]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    // Bottom:
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[4]);
+    point_copy(&vlist[2], &pts[3]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[0]);
+    point_copy(&vlist[1], &pts[5]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    point_copy(&vlist[0], &pts[1]);
+    polygon_set(&p, 3, vlist);
+    module_polygon(md, &p);
+
+    polygon_clear(&p);
+}
+
+/**
+ * Adds the Utah Teapot to the module, defined by a bunch of Bezier Surfaces.
+ * 
+ * Vertices were pulled from:
+ * https://www.sjbaker.org/wiki/index.php?title=The_History_of_The_Teapot
+ */
+void module_teapot(Module *md, int subdivisions) {
+    BezierSurface s;
+
+    // Defines the vertices to be used in the bezier surface for each component
+    int rim[16] =  {102, 103, 104, 105,   4,   5,   6,   7,
+                      8,   9,  10,  11,  12,  13,  14,  15};
+    int body_1[16] = {12,  13,  14,  15,  16,  17,  18,  19,
+                      20,  21,  22,  23,  24,  25,  26,  27};
+    int body_2[16] = {24,  25,  26,  27,  29,  30,  31,  32,
+                      33,  34,  35,  36,  37,  38,  39,  40};
+    int lid_1[16] = {96,  96,  96,  96,  97,  98,  99, 100,
+                    101, 101, 101, 101,   0,   1,   2,   3};
+    int lid_2[16] = {0,   1,   2,   3, 106, 107, 108, 109,
+                   110, 111, 112, 113, 114, 115, 116, 117};
+    int handle_1[16] = {41,  42,  43,  44,  45,  46,  47,  48,
+                        49,  50,  51,  52,  53,  54,  55,  56};
+    int handle_2[16] = {53,  54,  55,  56,  57,  58,  59,  60,
+                        61,  62,  63,  64,  28,  65,  66,  67};
+    int spout_1[16] = {68,  69,  70,  71,  72,  73,  74,  75,
+                       76,  77,  78,  79,  80,  81,  82,  83};
+    int spout_2[16] = {80,  81,  82,  83,  84,  85,  86,  87,
+                       88,  89,  90,  91,  92,  93,  94,  95};
+    Point vlist[118] = {
+    {{0.2000,  0.0000, 2.70000, 1.0 }}, {{0.2000, -0.1120, 2.70000, 1.0 }},
+    {{0.1120, -0.2000, 2.70000, 1.0 }}, {{0.0000, -0.2000, 2.70000, 1.0 }},
+    {{1.3375,  0.0000, 2.53125, 1.0 }}, {{1.3375, -0.7490, 2.53125, 1.0 }},
+    {{0.7490, -1.3375, 2.53125, 1.0 }}, {{0.0000, -1.3375, 2.53125, 1.0 }},
+    {{1.4375,  0.0000, 2.53125, 1.0 }}, {{1.4375, -0.8050, 2.53125, 1.0 }},
+    {{0.8050, -1.4375, 2.53125, 1.0 }}, {{0.0000, -1.4375, 2.53125, 1.0 }},
+    {{1.5000,  0.0000, 2.40000, 1.0 }}, {{1.5000, -0.8400, 2.40000, 1.0 }},
+    {{0.8400, -1.5000, 2.40000, 1.0 }}, {{0.0000, -1.5000, 2.40000, 1.0 }},
+    {{1.7500,  0.0000, 1.87500, 1.0 }}, {{1.7500, -0.9800, 1.87500, 1.0 }},
+    {{0.9800, -1.7500, 1.87500, 1.0 }}, {{0.0000, -1.7500, 1.87500, 1.0 }},
+    {{2.0000,  0.0000, 1.35000, 1.0 }}, {{2.0000, -1.1200, 1.35000, 1.0 }},
+    {{1.1200, -2.0000, 1.35000, 1.0 }}, {{0.0000, -2.0000, 1.35000, 1.0 }},
+    {{2.0000,  0.0000, 0.90000, 1.0 }}, {{2.0000, -1.1200, 0.90000, 1.0 }},
+    {{1.1200, -2.0000, 0.90000, 1.0 }}, {{0.0000, -2.0000, 0.90000, 1.0 }},
+    {{2.0000,  0.0000, 0.90000, 1.0 }}, {{2.0000,  0.0000, 0.45000, 1.0 }},
+    {{2.0000, -1.1200, 0.45000, 1.0 }}, {{1.1200, -2.0000, 0.45000, 1.0 }},
+    {{0.0000, -2.0000, 0.45000, 1.0 }}, {{1.5000,  0.0000, 0.22500, 1.0 }},
+    {{1.5000, -0.8400, 0.22500, 1.0 }}, {{0.8400, -1.5000, 0.22500, 1.0 }},
+    {{0.0000, -1.5000, 0.22500, 1.0 }}, {{1.5000,  0.0000, 0.15000, 1.0 }},
+    {{1.5000, -0.8400, 0.15000, 1.0 }}, {{0.8400, -1.5000, 0.15000, 1.0 }},
+    {{0.0000, -1.5000, 0.15000, 1.0 }}, {{ -1.6000,  0.0000, 2.02500, 1.0 }},
+    {{-1.6000, -0.3000, 2.02500, 1.0 }}, {{-1.5000, -0.3000, 2.25000, 1.0 }},
+    {{-1.5000,  0.0000, 2.25000, 1.0 }}, {{-2.3000,  0.0000, 2.02500, 1.0 }},
+    {{-2.3000, -0.3000, 2.02500, 1.0 }}, {{-2.5000, -0.3000, 2.25000, 1.0 }},
+    {{-2.5000,  0.0000, 2.25000, 1.0 }}, {{-2.7000,  0.0000, 2.02500, 1.0 }},
+    {{-2.7000, -0.3000, 2.02500, 1.0 }}, {{-3.0000, -0.3000, 2.25000, 1.0 }},
+    {{-3.0000,  0.0000, 2.25000, 1.0 }}, {{-2.7000,  0.0000, 1.80000, 1.0 }},
+    {{-2.7000, -0.3000, 1.80000, 1.0 }}, {{-3.0000, -0.3000, 1.80000, 1.0 }},
+    {{-3.0000,  0.0000, 1.80000, 1.0 }}, {{-2.7000,  0.0000, 1.57500, 1.0 }},
+    {{-2.7000, -0.3000, 1.57500, 1.0 }}, {{-3.0000, -0.3000, 1.35000, 1.0 }},
+    {{-3.0000,  0.0000, 1.35000, 1.0 }}, {{-2.5000,  0.0000, 1.12500, 1.0 }},
+    {{-2.5000, -0.3000, 1.12500, 1.0 }}, {{-2.6500, -0.3000, 0.93750, 1.0 }},
+    {{-2.6500,  0.0000, 0.93750, 1.0 }}, {{-2.0000, -0.3000, 0.90000, 1.0 }},
+    {{-1.9000, -0.3000, 0.60000, 1.0 }}, {{-1.9000,  0.0000, 0.60000, 1.0 }},
+    {{1.7000,  0.0000, 1.42500, 1.0 }}, {{1.7000, -0.6600, 1.42500, 1.0 }},
+    {{1.7000, -0.6600, 0.60000, 1.0 }}, {{1.7000,  0.0000, 0.60000, 1.0 }},
+    {{2.6000,  0.0000, 1.42500, 1.0 }}, {{2.6000, -0.6600, 1.42500, 1.0 }},
+    {{3.1000, -0.6600, 0.82500, 1.0 }}, {{3.1000,  0.0000, 0.82500, 1.0 }},
+    {{2.3000,  0.0000, 2.10000, 1.0 }}, {{2.3000, -0.2500, 2.10000, 1.0 }},
+    {{2.4000, -0.2500, 2.02500, 1.0 }}, {{2.4000,  0.0000, 2.02500, 1.0 }},
+    {{2.7000,  0.0000, 2.40000, 1.0 }}, {{2.7000, -0.2500, 2.40000, 1.0 }},
+    {{3.3000, -0.2500, 2.40000, 1.0 }}, {{3.3000,  0.0000, 2.40000, 1.0 }},
+    {{2.8000,  0.0000, 2.47500, 1.0 }}, {{2.8000, -0.2500, 2.47500, 1.0 }},
+    {{3.5250, -0.2500, 2.49375, 1.0 }}, {{3.5250,  0.0000, 2.49375, 1.0 }},
+    {{2.9000,  0.0000, 2.47500, 1.0 }}, {{2.9000, -0.1500, 2.47500, 1.0 }},
+    {{3.4500, -0.1500, 2.51250, 1.0 }}, {{3.4500,  0.0000, 2.51250, 1.0 }},
+    {{2.8000,  0.0000, 2.40000, 1.0 }}, {{2.8000, -0.1500, 2.40000, 1.0 }},
+    {{3.2000, -0.1500, 2.40000, 1.0 }}, {{3.2000,  0.0000, 2.40000, 1.0 }},
+    {{0.0000,  0.0000, 3.15000, 1.0 }}, {{0.8000,  0.0000, 3.15000, 1.0 }},
+    {{0.8000, -0.4500, 3.15000, 1.0 }}, {{0.4500, -0.8000, 3.15000, 1.0 }},
+    {{0.0000, -0.8000, 3.15000, 1.0 }}, {{0.0000,  0.0000, 2.85000, 1.0 }},
+    {{1.4000,  0.0000, 2.40000, 1.0 }}, {{1.4000, -0.7840, 2.40000, 1.0 }},
+    {{0.7840, -1.4000, 2.40000, 1.0 }}, {{0.0000, -1.4000, 2.40000, 1.0 }},
+    {{0.4000,  0.0000, 2.55000, 1.0 }}, {{0.4000, -0.2240, 2.55000, 1.0 }},
+    {{0.2240, -0.4000, 2.55000, 1.0 }}, {{0.0000, -0.4000, 2.55000, 1.0 }},
+    {{1.3000,  0.0000, 2.55000, 1.0 }}, {{1.3000, -0.7280, 2.55000, 1.0 }},
+    {{0.7280, -1.3000, 2.55000, 1.0 }}, {{0.0000, -1.3000, 2.55000, 1.0 }},
+    {{1.3000,  0.0000, 2.40000, 1.0 }}, {{1.3000, -0.7280, 2.40000, 1.0 }},
+    {{0.7280, -1.3000, 2.40000, 1.0 }}, {{0.0000, -1.3000, 2.40000, 1.0 }}};
+    
+    bezierSurface_init(&s);
+    // Add the rim:
+    for (int i = 0; i < 16; i++) {
+        point_copy(&s.ctrls[i], &vlist[rim[i]]);
+    }
+    module_rotateX(md, 0, -1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    // Add the body:
+    for (int i = 0; i < 16; i++) {
+        point_copy(&s.ctrls[i], &vlist[body_1[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    for (int i = 0; i < 16; i++) {
+        point_copy(&s.ctrls[i], &vlist[body_2[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    // Add the lid:
+    for (int i = 0; i < 16; i++) {
+        point_copy(&s.ctrls[i], &vlist[lid_1[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    for (int i = 0; i < 16; i++) {
+        point_copy(&s.ctrls[i], &vlist[lid_2[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+    module_rotateY(md, 0, 1);
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    // Add the handle:
+    for (int i = 0; i < 16; i++) { // 1st patch
+        point_copy(&s.ctrls[i], &vlist[handle_1[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    for (int i = 0; i < 16; i++) { // reflected 1st patch
+        Point pt;
+        point_copy(&pt, &vlist[handle_1[i]]);
+        pt.val[1] = -pt.val[1];
+        point_copy(&s.ctrls[i], &pt);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    for (int i = 0; i < 16; i++) { // 2nd patch
+        point_copy(&s.ctrls[i], &vlist[handle_2[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    for (int i = 0; i < 16; i++) { // reflected 2nd patch
+        Point pt;
+        point_copy(&pt, &vlist[handle_2[i]]);
+        pt.val[1] = -pt.val[1];
+        point_copy(&s.ctrls[i], &pt);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    // Add the spout:
+    for (int i = 0; i < 16; i++) { // 1/2 of base
+        point_copy(&s.ctrls[i], &vlist[spout_1[i]]);
+        point_print(&s.ctrls[i], stdout);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    for (int i = 0; i < 16; i++) { // reflected 1/2 of base
+        Point pt;
+        point_copy(&pt, &vlist[spout_1[i]]);
+        pt.val[1] = -pt.val[1];
+        point_copy(&s.ctrls[i], &pt);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+    
+    for (int i = 0; i < 16; i++) { // 1/2 of tip
+        point_copy(&s.ctrls[i], &vlist[spout_2[i]]);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
+
+    for (int i = 0; i < 16; i++) { // reflected 1/2 of tip
+        Point pt;
+        point_copy(&pt, &vlist[spout_2[i]]);
+        pt.val[1] = -pt.val[1];
+        point_copy(&s.ctrls[i], &pt);
+    }
+    module_bezierSurface(md, &s, subdivisions, 0);
 }
 
 /* SHADING/COLOR MODULE FUNCTIONS */

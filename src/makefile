@@ -164,6 +164,33 @@ test6c: $(ODIR)/test6c.o
 test6d: $(ODIR)/test6d.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test7a: $(ODIR)/test7a.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7b: $(ODIR)/test7b.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7c: $(ODIR)/test7c.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_prims: $(ODIR)/test7_prims.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_tetrahedron: $(ODIR)/test7_tetrahedron.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_octahedron: $(ODIR)/test7_octahedron.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_curves: $(ODIR)/test7_curves.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+test7_sail: $(ODIR)/test7_sail.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+animated_bezier: $(ODIR)/animated_bezier.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 pbil: $(ODIR)/pbil.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 

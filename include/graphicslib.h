@@ -7,6 +7,7 @@
 #include "views.h"
 #include "lighting.h"
 #include "drawstate.h"
+#include "bezier.h"
 #include "modeling.h"
 
 #endif

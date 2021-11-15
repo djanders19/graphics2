@@ -61,8 +61,6 @@ void point_normalize(Point *p) {
 
 
 /**
- * Normalize the x and y values of a point by its homogenous coordinate, e.g.
- * x = x / h, y = y /h.ou could make a picture, what would it be?
  * Copy the point data structure "from" to the Point data structure "to"
  */
 void point_copy(Point *to, Point *from) {
