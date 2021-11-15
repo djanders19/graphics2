@@ -46,16 +46,6 @@ typedef struct {
     Point *vertex; // array of vertices and their info
 } Polyline;
 
-/**
- * Struct for passing arguments of line_draw to threads when pawning off
- * work onto them.
- */
-struct args {
-    Line *l;
-    Image *src;
-    Color c;
-};
-
 
 /* PRIMITIVE FUNCTIONS */
 /* POINT PRIMITIVES */
