@@ -13,7 +13,7 @@
 */
 #include <stdio.h>
 #include <stdlib.h>
-#include "list.h"
+#include "graphicslib.h"
 
 /*
 	Creates a new linked list and returns a pointer to it.

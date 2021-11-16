@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "image.h"
-#include "horizontalSin.h"
+#include "graphicslib.h"
 
 /**
  * Apply

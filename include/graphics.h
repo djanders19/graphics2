@@ -7,10 +7,6 @@
  */
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
-#include "color.h"
-#include "image.h"
-#include "fpixel.h"
-
 
 typedef struct {
     double val[4]; // four element vector of doubles

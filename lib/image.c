@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "image.h"
-#include "color.h"
-#include "ppmIO.h"
+#include "graphicslib.h"
 
 #define USECPP 0
 

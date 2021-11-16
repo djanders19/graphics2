@@ -1,5 +1,16 @@
 {
     "files.associations": {
-        "graphicslib.h": "c"
+        "graphicslib.h": "c",
+        "lighting.h": "c",
+        "views.h": "c",
+        "math.h": "c",
+        "matrix.h": "c",
+        "polygon.h": "c",
+        "graphics.h": "c",
+        "fpixel.h": "c",
+        "image.h": "c",
+        "color.h": "c",
+        "drawstate.h": "c",
+        "modeling.h": "c"
     }
 }
