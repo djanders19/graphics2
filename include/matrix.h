@@ -9,8 +9,6 @@
 #ifndef MATRIX_H
 
 #define MATRIX_H
-#include <stdio.h>
-#include "polygon.h"
 
 typedef struct {
     double m[4][4];

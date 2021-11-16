@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
-#include "graphics.h"
+#include "graphicslib.h"
 
 
 /* POINT PRIMITIVES */
@@ -441,7 +441,7 @@ void line_draw(Line *l, Image *src, Color c) {
                 dz = z1 - z;
             }
 
-            int e_prime = 3 * dy - 2 * dx; // initialize e_prime
+            e_prime = 3 * dy - 2 * dx; // initialize e_prime
 
             if (dx > 0 && dx >= dy) {
                 // first octant

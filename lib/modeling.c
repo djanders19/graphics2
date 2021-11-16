@@ -558,7 +558,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
                 polygon_draw(p, src, ds->color);
             } else {
                 // If DS->shade is ShadeConstant -> draw filled using DS->color
-                polygon_drawFill(p, src, ds->color);
+                polygon_drawFill(p, src, ds->color, ds);
             }
 
             polygon_free(p);
@@ -806,9 +806,12 @@ void module_cube(Module *md, int solid) {
 
         // Top side:
         polygon_set(&(side[0]), 4, &(p[0]));
-
+        Vector normal = {{0.0, 1.0, 0.0}};
+        for (i = 0; i < 4; i++) vector_copy(&side[0].normal[i], &normal);
         // Bottom side:
         polygon_set(&(side[1]), 4, &(p[4]));
+        vector_set(&normal, 0.0, -1.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side[1].normal[i], &normal);
 
         // front side:
         point_copy(&(tv[0]), &(p[0]));
@@ -816,6 +819,8 @@ void module_cube(Module *md, int solid) {
         point_copy(&(tv[2]), &(p[7]));
         point_copy(&(tv[3]), &(p[4]));
         polygon_set(&(side[2]), 4, &(tv[0]));
+        vector_set(&normal, 0.0, 0.0, 1.0);
+        for (i = 0; i < 4; i++) vector_copy(&side[2].normal[i], &normal);
 
         // back side:
         point_copy(&(tv[0]), &(p[1]));
@@ -823,6 +828,8 @@ void module_cube(Module *md, int solid) {
         point_copy(&(tv[2]), &(p[6]));
         point_copy(&(tv[3]), &(p[5]));
         polygon_set(&(side[3]), 4, &(tv[0]));
+        vector_set(&normal, 0.0, 0.0, -1.0);
+        for (i = 0; i < 4; i++) vector_copy(&side[3].normal[i], &normal);
 
         // left side (as viewed from positive y-axis looking to decreasing vals)
         point_copy(&(tv[0]), &(p[3]));
@@ -830,6 +837,8 @@ void module_cube(Module *md, int solid) {
         point_copy(&(tv[2]), &(p[6]));
         point_copy(&(tv[3]), &(p[7]));
         polygon_set(&(side[4]), 4, &(tv[0]));
+        vector_set(&normal, -1.0, 0.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side[4].normal[i], &normal);
 
         // right side:
         point_copy(&(tv[0]), &(p[0]));
@@ -837,10 +846,12 @@ void module_cube(Module *md, int solid) {
         point_copy(&(tv[2]), &(p[5]));
         point_copy(&(tv[3]), &(p[4]));
         polygon_set(&(side[5]), 4, &(tv[0]));
+        vector_set(&normal, 1.0, 0.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side[5].normal[i], &normal);
         
         for (i = 0; i < 6; i++) {
             module_polygon(md, &(side[i])); // Add the polygon to the module
-            polygon_free(&(side[i])); // free the polygon
+            polygon_clear(&(side[i])); // free the polygon
         }
     }
 }

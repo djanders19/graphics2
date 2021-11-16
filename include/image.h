@@ -1,8 +1,7 @@
 #ifndef IMAGE_H
 
 #define IMAGE_H
-#include "fpixel.h"
-#include "color.h"
+#include "graphicslib.h"
 
 typedef struct {
     FPixel *data;
