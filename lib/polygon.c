@@ -501,7 +501,7 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 					   edge->dxPerScan * ((edge->yStart + 0.5) - edge->y0);
     edge->zIntersect = (1 / edge->z0) +
                        edge->dzPerScan * ((edge->yStart + 0.5) - edge->y0);
-
+    printf("init z-Intersect = %f\n", edge->zIntersect);
 	// adjust if the edge starts above the image
 	// move the intersections down to scanline zero
 	// if edge->y0 < 0
@@ -519,8 +519,8 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
         edge->z0 = edge->z0 + (edge->dzPerScan) * (-(edge->y0));
 		edge->y0 = 0; // y0 is 0
 		edge->yStart = 0; // Starting scanline is 0 - does not line up with y0!
-	}
-
+	    printf("adj z-Intersect = %f\n", edge->zIntersect);
+    }
 
 	// check for really bad cases with steep slopes where xIntersect has gone 
 	// beyond the end of the edge
@@ -535,6 +535,9 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
     }
 
 	// return the newly created edge data structure
+    printf("Edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+           start.val[0], start.val[1], start.val[2],
+           end.val[0], end.val[1], end.val[2], edge->zIntersect, edge->dzPerScan);
 	return(edge);
 }
 
@@ -558,7 +561,6 @@ static LinkedList *setupEdgeList( Polygon *p, Image *src) {
 		
 		// the current point (i) is the end of the segment
 		v2 = p->vertex[i];
-        point_print(&v2, stdout);
 
 		// if it is not a horizontal line
 		if( (int)(v1.val[1]+0.5) != (int)(v2.val[1]+0.5) ) {
@@ -602,6 +604,14 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 		  printf("bad bad bad (your edges are not coming in pairs)\n"); // lol
 		  break;
 	  }
+      printf("\n\n\n\n");
+      printf("First edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+       p1->x0, p1->y0, p1->z0,
+       p1->x1, p1->y1, p1->z1, p1->zIntersect, p1->dzPerScan);
+      printf("\n");
+      printf("Second edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+       p2->x0, p2->y0, p2->z0,
+       p2->x1, p2->y1, p2->z1, p2->zIntersect, p2->dzPerScan);
 
 	  // if the xIntersect values are the same, don't draw anything.
 	  // Just go to the next pair.
@@ -611,7 +621,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 	  }
 
 		/**** Your code goes here ****/
-      float curZ = p1->z0 + scan * p1->dzPerScan;
+      float curZ = p1->zIntersect;
       float dzPerColumn = (p2->zIntersect - p1->zIntersect) / (p2->xIntersect - p1->xIntersect);
 
 	  // identify the starting column
@@ -629,7 +639,9 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 	  if (f >= src->cols) {
 		  f = (src->cols);
 	  }
-
+     printf("i = %d, f = %d\n", i, f);
+     printf("curZ = %f, imageZ = %f\n", curZ, image_getz(src, scan, i));
+     printf("dzPerCol = %f\n", dzPerColumn);
 	  // loop from start to end and color in the pixels
 	  while (i < f) {
           if (curZ > image_getz(src, scan, i)) {

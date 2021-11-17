@@ -803,7 +803,7 @@ void module_cube(Module *md, int solid) {
     } else {
         polygon_init(&side);
 
-        // // Top side:
+        // Top side:
         polygon_set(&(side), 4, &(p[0]));
         Vector normal = {{0.0, 1.0, 0.0}};
         for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
