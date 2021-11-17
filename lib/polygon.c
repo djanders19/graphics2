@@ -516,7 +516,7 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 		edge->xIntersect = edge->x0 + (edge->dxPerScan) * (-(edge->y0) + 0.5);
         edge->zIntersect = 1 / edge->z0 + (edge->dzPerScan) * (-(edge->y0) + 0.5);
 		edge->x0 = edge->x0 + (edge->dxPerScan) * (-(edge->y0));
-        edge->z0 = (1 / edge->z0) + (edge->dzPerScan) * (-(edge->y0));
+        edge->z0 = edge->z0 + (edge->dzPerScan) * (-(edge->y0));
 		edge->y0 = 0; // y0 is 0
 		edge->yStart = 0; // Starting scanline is 0 - does not line up with y0!
 	}
@@ -558,6 +558,7 @@ static LinkedList *setupEdgeList( Polygon *p, Image *src) {
 		
 		// the current point (i) is the end of the segment
 		v2 = p->vertex[i];
+        point_print(&v2, stdout);
 
 		// if it is not a horizontal line
 		if( (int)(v1.val[1]+0.5) != (int)(v2.val[1]+0.5) ) {
@@ -640,7 +641,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
                   case ShadeDepth:;
                     Color newColor;
                     color_set(&newColor, 1 - 1/curZ, 1 - 1/curZ, 1 - 1/curZ);
-                    printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
+                    // printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
 
                     image_setColor(src, scan, i, newColor);
                     break;

@@ -804,18 +804,18 @@ void module_cube(Module *md, int solid) {
         polygon_init(&side);
 
         // // Top side:
-        // polygon_set(&(side), 4, &(p[0]));
+        polygon_set(&(side), 4, &(p[0]));
         Vector normal = {{0.0, 1.0, 0.0}};
-        // for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
-        // module_polygon(md, &side);
-        // polygon_clear(&side);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // // Bottom side:
-        // polygon_set(&(side), 4, &(p[4]));
-        // vector_set(&normal, 0.0, -1.0, 0.0);
-        // for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
-        // module_polygon(md, &side);
-        // polygon_clear(&side);
+        // Bottom side:
+        polygon_set(&(side), 4, &(p[4]));
+        vector_set(&normal, 0.0, -1.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
         // front side (positive z):
         point_copy(&(tv[0]), &(p[0]));
@@ -847,15 +847,19 @@ void module_cube(Module *md, int solid) {
         polygon_set(&(side), 4, &(tv[0]));
         vector_set(&normal, -1.0, 0.0, 0.0);
         for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // // right side (positive x):
-        // point_copy(&(tv[0]), &(p[0]));
-        // point_copy(&(tv[1]), &(p[1]));
-        // point_copy(&(tv[2]), &(p[5]));
-        // point_copy(&(tv[3]), &(p[4]));
-        // polygon_set(&(side[5]), 4, &(tv[0]));
-        // vector_set(&normal, 1.0, 0.0, 0.0);
-        // for (i = 0; i < 4; i++) vector_copy(&side[5].normal[i], &normal);
+        // right side (positive x):
+        point_copy(&(tv[0]), &(p[0]));
+        point_copy(&(tv[1]), &(p[1]));
+        point_copy(&(tv[2]), &(p[5]));
+        point_copy(&(tv[3]), &(p[4]));
+        polygon_set(&(side), 4, &(tv[0]));
+        vector_set(&normal, 1.0, 0.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
         
         // for (i = 0; i < 2; i++) {
         //     module_polygon(md, &(side[i])); // Add the polygon to the module
