@@ -7,10 +7,6 @@
  */
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
-#include "color.h"
-#include "image.h"
-#include "fpixel.h"
-
 
 typedef struct {
     double val[4]; // four element vector of doubles
@@ -45,16 +41,6 @@ typedef struct {
     int numVertex; // number of vertices
     Point *vertex; // array of vertices and their info
 } Polyline;
-
-/**
- * Struct for passing arguments of line_draw to threads when pawning off
- * work onto them.
- */
-struct args {
-    Line *l;
-    Image *src;
-    Color c;
-};
 
 
 /* PRIMITIVE FUNCTIONS */

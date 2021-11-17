@@ -26,8 +26,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include "image.h"
-#include "julia.h"
+#include "graphicslib.h"
 
 #define ITERATIONS 10000 // Num of iterations to run of the dynamic system
 #define CX 0.7454054; // constant component of c in the julia set equation

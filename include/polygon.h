@@ -14,7 +14,8 @@
 
 #define POLYGON_H
 
-#include "graphics.h"
+#include "graphicslib.h"
+
 
 /**
  * Polygons are somewhat more complex than other primitives, so for the time
@@ -45,8 +46,8 @@ void polygon_copy(Polygon *to, Polygon *from);
 void polygon_print(Polygon *p, FILE *fp);
 void polygon_normalize(Polygon *p);
 void polygon_draw(Polygon *p, Image *src, Color c);
-void polygon_drawFill(Polygon *p, Image *src, Color c);
-void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c);
+void polygon_drawFill(Polygon *p, Image *src, Color c, DrawState* ds);
+void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c, DrawState* ds);
 void polygon_drawFillB(Polygon *p, Image *src, Color c);
 
 #endif

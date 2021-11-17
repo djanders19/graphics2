@@ -19,8 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "polygon.h"
-#include "list.h"
+#include "graphicslib.h"
 
 
 /* The functions polygon create and polygon free manage both the Polygon data 
@@ -91,7 +90,6 @@ void polygon_free(Polygon *p) {
     if (p->normal) {
         free(p->normal);
     }
-
     free(p);
 }
 
@@ -397,12 +395,12 @@ Scanline Fill Algorithm
 
 // define the struct here, because it is local to only this file
 typedef struct tEdge {
-	float x0, y0;                   /* start point for the edge */
-	float x1, y1;                   /* end point for the edge */
-	int yStart, yEnd;               /* start row and end row */
-  float xIntersect, dxPerScan;    /* where the edge intersects the current scanline and how it changes */
-	/* we'll add more here later */
-  struct tEdge *next;
+	float x0, y0, z0;            /* start point for the edge */
+	float x1, y1, z1;            /* end point for the edge */
+	int yStart, yEnd;            /* start row and end row */
+    float xIntersect, dxPerScan; /* where the edge intersects the current scanline and how it changes in x */
+	float zIntersect, dzPerScan; /* Where the edge intersects the current scanline and how it changes in z */
+    struct tEdge *next;
 } Edge;
 
 
@@ -473,8 +471,10 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 
 	edge->x0 = start.val[0];
 	edge->y0 = start.val[1];
+    edge->z0 = start.val[2];
 	edge->x1 = end.val[0];
 	edge->y1 = end.val[1];
+    edge->z1 = end.val[2];
 
 	// turn on an edge only if the edge starts in the top half of it or
 	// the lower half of the pixel above it.  In other words, round the
@@ -493,12 +493,15 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 
 	// Calculate the slope, dxPerScan
 	edge->dxPerScan = (end.val[0] - start.val[0]) / (edge->y1 - edge->y0);
+    edge->dzPerScan = ((1/end.val[2]) - (1/start.val[2])) / (edge->y1 - edge->y0);
 
 	// Calculate xIntersect, adjusting for the fraction of the point in the pixel.
 	// Scanlines go through the middle of pixels
 	edge->xIntersect = edge->x0 + 
 					   edge->dxPerScan * ((edge->yStart + 0.5) - edge->y0);
-
+    edge->zIntersect = (1 / edge->z0) +
+                       edge->dzPerScan * ((edge->yStart + 0.5) - edge->y0);
+    printf("init z-Intersect = %f\n", edge->zIntersect);
 	// adjust if the edge starts above the image
 	// move the intersections down to scanline zero
 	// if edge->y0 < 0
@@ -511,11 +514,13 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 		y0 and 0. The 0th scanline crosses at y = 0.5 because the pixel grid is
 		aligned to the tops/bottoms of pixels, so we adjust accordingly */
 		edge->xIntersect = edge->x0 + (edge->dxPerScan) * (-(edge->y0) + 0.5);
+        edge->zIntersect = 1 / edge->z0 + (edge->dzPerScan) * (-(edge->y0) + 0.5);
 		edge->x0 = edge->x0 + (edge->dxPerScan) * (-(edge->y0));
+        edge->z0 = edge->z0 + (edge->dzPerScan) * (-(edge->y0));
 		edge->y0 = 0; // y0 is 0
 		edge->yStart = 0; // Starting scanline is 0 - does not line up with y0!
-	}
-
+	    printf("adj z-Intersect = %f\n", edge->zIntersect);
+    }
 
 	// check for really bad cases with steep slopes where xIntersect has gone 
 	// beyond the end of the edge
@@ -529,8 +534,10 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
         }
     }
 
-
 	// return the newly created edge data structure
+    printf("Edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+           start.val[0], start.val[1], start.val[2],
+           end.val[0], end.val[1], end.val[2], edge->zIntersect, edge->dzPerScan);
 	return(edge);
 }
 
@@ -584,7 +591,7 @@ static LinkedList *setupEdgeList( Polygon *p, Image *src) {
 	Draw one scanline of a polygon given the scanline, the active edges,
 	a DrawState, the image, and some Lights (for Phong shading only).
  */
-static void fillScan( int scan, LinkedList *active, Image *src, Color c ) {
+static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawState* ds) {
   Edge *p1, *p2;
   int i, f;
 
@@ -597,6 +604,14 @@ static void fillScan( int scan, LinkedList *active, Image *src, Color c ) {
 		  printf("bad bad bad (your edges are not coming in pairs)\n"); // lol
 		  break;
 	  }
+      printf("\n\n\n\n");
+      printf("First edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+       p1->x0, p1->y0, p1->z0,
+       p1->x1, p1->y1, p1->z1, p1->zIntersect, p1->dzPerScan);
+      printf("\n");
+      printf("Second edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+       p2->x0, p2->y0, p2->z0,
+       p2->x1, p2->y1, p2->z1, p2->zIntersect, p2->dzPerScan);
 
 	  // if the xIntersect values are the same, don't draw anything.
 	  // Just go to the next pair.
@@ -606,10 +621,15 @@ static void fillScan( int scan, LinkedList *active, Image *src, Color c ) {
 	  }
 
 		/**** Your code goes here ****/
+      float curZ = p1->zIntersect;
+      float dzPerColumn = (p2->zIntersect - p1->zIntersect) / (p2->xIntersect - p1->xIntersect);
+
 	  // identify the starting column
 	  i = floor(p1->xIntersect);
+
 	  // clip to the left side of the image
 	  if (i < 0) {
+          curZ = curZ - i * dzPerColumn; // adjust curZ to 0th column val
 		  i = 0;
 	  }
 
@@ -619,11 +639,33 @@ static void fillScan( int scan, LinkedList *active, Image *src, Color c ) {
 	  if (f >= src->cols) {
 		  f = (src->cols);
 	  }
-
+     printf("i = %d, f = %d\n", i, f);
+     printf("curZ = %f, imageZ = %f\n", curZ, image_getz(src, scan, i));
+     printf("dzPerCol = %f\n", dzPerColumn);
 	  // loop from start to end and color in the pixels
 	  while (i < f) {
-		  image_setColor(src, scan, i, c);
+          if (curZ > image_getz(src, scan, i)) {
+              switch (ds->shade) {
+                  case ShadeConstant:
+                    image_setColor(src, scan, i, c);
+                    break;
+
+                  case ShadeDepth:;
+                    Color newColor;
+                    color_set(&newColor, 1 - 1/curZ, 1 - 1/curZ, 1 - 1/curZ);
+                    // printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
+
+                    image_setColor(src, scan, i, newColor);
+                    break;
+                  default:
+                    printf("Unhandled shading case!\n");
+                    break;
+              }
+            // image_setColor(src, scan, i, c);
+            image_setz(src, scan, i, curZ);
+          }
 		  i++;
+          curZ = curZ + dzPerColumn;
 	  }
 
 	  // move ahead to the next pair of edges
@@ -636,7 +678,7 @@ static void fillScan( int scan, LinkedList *active, Image *src, Color c ) {
 /* 
 	 Process the edge list, assumes the edges list has at least one entry
 */
-static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
+static int processEdgeList( LinkedList *edges, Image *src, Color c, DrawState* ds) {
 	LinkedList *active = NULL;
 	LinkedList *tmplist = NULL;
 	LinkedList *transfer = NULL;
@@ -651,12 +693,12 @@ static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
 	current = ll_head( edges );
 
 	// start at the first scanline and go until the active list is empty
-	for(scan = current->yStart;scan < src->rows;scan++ ) {
+	for (scan = current->yStart; scan < src->rows; scan++) {
 
 		// grab all edges starting on this row
 		while( current != NULL && current->yStart == scan ) {
-			ll_insert( active, current, compXIntersect );
-			current = ll_next( edges );
+			ll_insert(active, current, compXIntersect);
+			current = ll_next(edges);
 		}
 		// current is either null, or the first edge to be handled on some future scanline
 
@@ -666,10 +708,10 @@ static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
 
 		// if there are active edges
 		// fill out the scanline
-		fillScan( scan, active, src, c);
+		fillScan( scan, active, src, c, ds);
 
 		// remove any ending edges and update the rest
-		for( tedge = ll_pop( active ); tedge != NULL; tedge = ll_pop( active ) ) {
+		for(tedge = ll_pop(active); tedge != NULL; tedge = ll_pop(active)) {
 
 			// keep anything that's not ending
 			if( tedge->yEnd > scan ) {
@@ -677,6 +719,7 @@ static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
 
 				// update the edge information with the dPerScan values
 				tedge->xIntersect += tedge->dxPerScan;
+                tedge->zIntersect += tedge->dzPerScan;
 
 				// adjust in the case of partial overlap
 				if( tedge->dxPerScan < 0.0 && tedge->xIntersect < tedge->x1 ) {
@@ -695,7 +738,6 @@ static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
 		transfer = active;
 		active = tmplist;
 		tmplist = transfer;
-
 	}
 
 	// get rid of the lists, but not the edge records
@@ -709,16 +751,21 @@ static int processEdgeList( LinkedList *edges, Image *src, Color c ) {
  * Draw the filled polygon using color c with the scanline z-buffer rendering 
  * algorithm.
  */
-void polygon_drawFill(Polygon *p, Image *src, Color c) {
+void polygon_drawFill(Polygon *p, Image *src, Color c, DrawState* ds) {
 	LinkedList *edges = NULL;
 
+    if (ds->shade == ShadeFrame) {
+        polygon_draw(p, src, c);
+        return;
+    }
+
 	// set up the edge list
-	edges = setupEdgeList( p, src );
-	if( !edges )
+	edges = setupEdgeList(p, src);
+	if(!edges)
 		return;
 	
 	// process the edge list (should be able to take an arbitrary edge list)
-	processEdgeList( edges, src, c);
+	processEdgeList(edges, src, c, ds);
 
 	// clean up
 	ll_delete( edges, (void (*)(const void *))free );
@@ -740,7 +787,7 @@ End Scanline Fill
  * a scene in a list, then draw all of the polygons onto a blank supersized
  * canvas, and only then scale down to the final image.
  */
-void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c) {
+void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c, DrawState* ds) {
     // Create superimage with 4x4 superpixels
     Image *superimage = image_create(src->rows * 4, src->cols * 4);
 
@@ -775,7 +822,7 @@ void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c) {
     }
 
     // Draw the polygon onto a big image (4x4 superpixels)
-    polygon_drawFill(largePolygon, superimage, c);
+    polygon_drawFill(largePolygon, superimage, c, ds);
 
     // Iterate over all the pixels in the original image
     for (i = 0; i < src->rows; i++) {
