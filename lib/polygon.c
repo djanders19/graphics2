@@ -604,14 +604,6 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 		  printf("bad bad bad (your edges are not coming in pairs)\n"); // lol
 		  break;
 	  }
-      printf("\n\n\n\n");
-      printf("First edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
-       p1->x0, p1->y0, p1->z0,
-       p1->x1, p1->y1, p1->z1, p1->zIntersect, p1->dzPerScan);
-      printf("\n");
-      printf("Second edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
-       p2->x0, p2->y0, p2->z0,
-       p2->x1, p2->y1, p2->z1, p2->zIntersect, p2->dzPerScan);
 
 	  // if the xIntersect values are the same, don't draw anything.
 	  // Just go to the next pair.
@@ -639,12 +631,10 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 	  if (f >= src->cols) {
 		  f = (src->cols);
 	  }
-     printf("i = %d, f = %d\n", i, f);
-     printf("curZ = %f, imageZ = %f\n", curZ, image_getz(src, scan, i));
-     printf("dzPerCol = %f\n", dzPerColumn);
+
 	  // loop from start to end and color in the pixels
 	  while (i < f) {
-          if (curZ > image_getz(src, scan, i)) {
+          if (curZ > image_getz(src, scan, i) && (curZ - image_getz(src, scan, i) >= 0.01)) {
               switch (ds->shade) {
                   case ShadeConstant:
                     image_setColor(src, scan, i, c);
@@ -652,7 +642,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 
                   case ShadeDepth:;
                     Color newColor;
-                    color_set(&newColor, 1 - 1/curZ, 1 - 1/curZ, 1 - 1/curZ);
+                    color_set(&newColor, 1.4*c.c[0] - 1/curZ, 1.4*c.c[1] - 1/curZ, 1.4*c.c[2] - 1/curZ);
                     // printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
 
                     image_setColor(src, scan, i, newColor);
