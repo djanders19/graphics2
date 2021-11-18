@@ -40,6 +40,7 @@ void image_free(Image *src) {
     free(src->depth);
     free(src->alpha);
     free(src->data);
+    free(src->centroidDepth);
     free(src);
     return;
 }
@@ -56,6 +57,7 @@ void image_init(Image *src) {
     src->alpha = NULL;
     src->depth = NULL;
     src->data = NULL;
+    src->centroidDepth = NULL;
     return;
 }
 
@@ -81,6 +83,7 @@ int image_alloc(Image *src, int rows, int cols) {
 
     // Malloc image pixels and associated alpha/depth arrays:
     src->depth = (float *) malloc(rows * cols * sizeof(float));
+    src->centroidDepth = (float *) malloc(rows * cols * sizeof(float));
     src->alpha = (float *) malloc(rows * cols * sizeof(float));
     src->data = (FPixel *) malloc(rows * cols * sizeof(FPixel));
 
@@ -89,6 +92,7 @@ int image_alloc(Image *src, int rows, int cols) {
         // set default depths, alphas, and make the image black (rgb all 0.0)
         for (int i = 0; i < rows*cols; i++) {
             src->depth[i] = 1.0;
+            src->centroidDepth[i] = 1.0;
             src->alpha[i] = 1.0;
 
             // Initialize rgb values to 0.0:
@@ -112,9 +116,11 @@ int image_alloc(Image *src, int rows, int cols) {
  */
 void image_dealloc(Image *src) {
     free(src->depth);
+    free(src->centroidDepth);
     free(src->data);
     free(src->alpha);
 
+    src->centroidDepth = NULL;
     src->depth = NULL;
     src->alpha = NULL;
     src->data = NULL;
@@ -263,6 +269,20 @@ float image_getz(Image *src, int r, int c) {
     return src->depth[index];
 }
 
+/**
+ * Get the centroid depth associated with the specified pixel in an image.
+ */
+float image_getCentroidDepth(Image *src, int r, int c) {
+    int index = (src->cols * r) + c;
+    if (index > (src->cols * src->rows) || index < 0) {
+        printf("Attempted to get pixel (%d, %d) which is outside the image.\n",\
+            r, c);
+        return -1.0;
+    }
+
+    return src->centroidDepth[index];
+}
+
 
 /**
  * Set the FPixel at row r, column c. If the specified row/col is
@@ -334,6 +354,20 @@ void image_setz(Image *src, int r, int c, float val) {
     src->depth[index] = val;    
 }
 
+/**
+ * Set the centroid depth for the pixel to the given value.
+ */
+void image_setCentroidDepth(Image *src, int r, int c, float val) {
+        int index = (src->cols * r) + c;
+    if (index > (src->cols * src->rows) || index < 0) {
+        printf("Attempted to get pixel (%d %d), which is outside the image.\n",\
+            r, c);
+        return;
+    }
+    
+    src->centroidDepth[index] = val;   
+}
+
 
 
 /* Image Utilities */
@@ -346,6 +380,7 @@ void image_reset(Image *src) {
     for (int i = 0; i < src->rows * src->cols; i++) {
             src->depth[i] = 1.0;
             src->alpha[i] = 1.0;
+            src->centroidDepth[i] = 1.0;
 
             // Initialize rgb values to 0.0:
             for (int j = 0; j < 3; j++) {

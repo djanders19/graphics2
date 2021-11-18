@@ -8,6 +8,7 @@ typedef struct {
     int rows; // num rows in the image
     int cols; // num cols in the image
     float *depth; // z-values (depth) for each pixel
+    float *centroidDepth; // depth of centroid of polygon drawn at each pixel.
     float *alpha; // alpha (transparency) for each pixel
     float maxval; // maximum value a pixel can have
 } Image;
@@ -29,11 +30,13 @@ FPixel image_getf(Image *src, int r, int c);
 float image_getc(Image *src, int r, int c, int b);
 float image_geta(Image *src, int r, int c);
 float image_getz(Image *src, int r, int c);
+float image_getCentroidDepth(Image *src, int r, int c);
 
 void image_setf(Image *src, int r, int c, FPixel val);
 void image_setc(Image *src, int r, int c, int b, float val);
 void image_seta(Image *src, int r, int c, float val);
 void image_setz(Image *src, int r, int c, float val);
+void image_setCentroidDepth(Image *src, int r, int c, float val);
 
 /* Image Utilities */
 void image_reset(Image *src);
