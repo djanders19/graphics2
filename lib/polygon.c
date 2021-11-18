@@ -501,7 +501,7 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 					   edge->dxPerScan * ((edge->yStart + 0.5) - edge->y0);
     edge->zIntersect = (1 / edge->z0) +
                        edge->dzPerScan * ((edge->yStart + 0.5) - edge->y0);
-    printf("init z-Intersect = %f\n", edge->zIntersect);
+
 	// adjust if the edge starts above the image
 	// move the intersections down to scanline zero
 	// if edge->y0 < 0
@@ -519,7 +519,6 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
         edge->z0 = edge->z0 + (edge->dzPerScan) * (-(edge->y0));
 		edge->y0 = 0; // y0 is 0
 		edge->yStart = 0; // Starting scanline is 0 - does not line up with y0!
-	    printf("adj z-Intersect = %f\n", edge->zIntersect);
     }
 
 	// check for really bad cases with steep slopes where xIntersect has gone 
@@ -535,9 +534,6 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
     }
 
 	// return the newly created edge data structure
-    printf("Edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
-           start.val[0], start.val[1], start.val[2],
-           end.val[0], end.val[1], end.val[2], edge->zIntersect, edge->dzPerScan);
 	return(edge);
 }
 
@@ -634,7 +630,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 
 	  // loop from start to end and color in the pixels
 	  while (i < f) {
-          if (curZ > image_getz(src, scan, i) && (curZ - image_getz(src, scan, i) >= 0.01)) {
+          if (curZ > image_getz(src, scan, i) && (curZ - image_getz(src, scan, i) >= 0.03)) {
               switch (ds->shade) {
                   case ShadeConstant:
                     image_setColor(src, scan, i, c);
