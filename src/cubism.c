@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "graphics.h"
+#include "graphicslib.h"
 
 int main(int argc, char *argv[]) {
   Image *src;
