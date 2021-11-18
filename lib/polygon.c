@@ -435,6 +435,7 @@ typedef struct tEdge {
 	int yStart, yEnd;            /* start row and end row */
     float xIntersect, dxPerScan; /* where the edge intersects the current scanline and how it changes in x */
 	float zIntersect, dzPerScan; /* Where the edge intersects the current scanline and how it changes in z */
+    float centroidDepth;
     struct tEdge *next;
 } Edge;
 
@@ -477,7 +478,7 @@ static int compXIntersect( const void *a, const void *b ) {
 	Eventually, the points will be 3D and we'll add color and texture
 	coordinates.
  */
-static Edge *makeEdgeRec( Point start, Point end, Image *src) {
+static Edge *makeEdgeRec( Point start, Point end, Image *src, float centroidZ) {
 	// float dscan = end.val[1] - start.val[1];
 	Point temp;
 
@@ -510,6 +511,7 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 	edge->x1 = end.val[0];
 	edge->y1 = end.val[1];
     edge->z1 = end.val[2];
+    edge->centroidDepth = centroidZ;
 
 	// turn on an edge only if the edge starts in the top half of it or
 	// the lower half of the pixel above it.  In other words, round the
@@ -536,7 +538,7 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
 					   edge->dxPerScan * ((edge->yStart + 0.5) - edge->y0);
     edge->zIntersect = (1 / edge->z0) +
                        edge->dzPerScan * ((edge->yStart + 0.5) - edge->y0);
-    printf("init z-Intersect = %f\n", edge->zIntersect);
+    // printf("init z-Intersect = %f\n", edge->zIntersect);
 	// adjust if the edge starts above the image
 	// move the intersections down to scanline zero
 	// if edge->y0 < 0
@@ -554,7 +556,6 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
         edge->z0 = edge->z0 + (edge->dzPerScan) * (-(edge->y0));
 		edge->y0 = 0; // y0 is 0
 		edge->yStart = 0; // Starting scanline is 0 - does not line up with y0!
-	    printf("adj z-Intersect = %f\n", edge->zIntersect);
     }
 
 	// check for really bad cases with steep slopes where xIntersect has gone 
@@ -570,9 +571,9 @@ static Edge *makeEdgeRec( Point start, Point end, Image *src) {
     }
 
 	// return the newly created edge data structure
-    printf("Edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
-           start.val[0], start.val[1], start.val[2],
-           end.val[0], end.val[1], end.val[2], edge->zIntersect, edge->dzPerScan);
+    // printf("Edge from (%f, %f, %f) to (%f, %f, %f) with zIntersect = %f, dzPerScan = %f\n",
+    //        start.val[0], start.val[1], start.val[2],
+    //        end.val[0], end.val[1], end.val[2], edge->zIntersect, edge->dzPerScan);
 	return(edge);
 }
 
@@ -585,6 +586,7 @@ static LinkedList *setupEdgeList( Polygon *p, Image *src) {
 	LinkedList *edges = NULL;
 	Point v1, v2;
 	int i;
+    float centroidZ = p->centroid.val[2];
 
 	// create a linked list
 	edges = ll_new();
@@ -602,9 +604,9 @@ static LinkedList *setupEdgeList( Polygon *p, Image *src) {
 			Edge *edge;
 			// if the first coordinate is smaller (top edge)
 			if( v1.val[1] < v2.val[1] ){
-				edge = makeEdgeRec( v1, v2, src );
+				edge = makeEdgeRec( v1, v2, src, centroidZ);
             } else {
-				edge = makeEdgeRec( v2, v1, src );
+				edge = makeEdgeRec( v2, v1, src, centroidZ);
             }
 			// insert the edge into the list of edges if it's not null
 			if( edge ) {
@@ -669,7 +671,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
 
 	  // loop from start to end and color in the pixels
 	  while (i < f) {
-          if (curZ > image_getz(src, scan, i) && (curZ - image_getz(src, scan, i) >= 0.025)) {
+          if (curZ > image_getz(src, scan, i)) {
               switch (ds->shade) {
                   case ShadeConstant:
                     image_setColor(src, scan, i, c);
@@ -679,8 +681,14 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
                     Color newColor;
                     color_set(&newColor, 1.4*c.c[0] - 1/curZ, 1.4*c.c[1] - 1/curZ, 1.4*c.c[2] - 1/curZ);
                     // printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
-
-                    image_setColor(src, scan, i, newColor);
+                    if (curZ - image_getz(src, scan, i) >= 0.01 ) {
+                        image_setColor(src, scan, i, newColor);
+                        image_setCentroidDepth(src, scan, i, 1 / p1->centroidDepth);
+                    } else if (1 / p1->centroidDepth > image_getCentroidDepth(src, scan, i)) {
+                        printf("p1 CD: %f. Current CD: %f\n", 1 / p1->centroidDepth, image_getCentroidDepth(src, scan, i));
+                        image_setColor(src, scan, i, newColor);
+                        image_setCentroidDepth(src, scan, i, 1 / p1->centroidDepth);
+                    }
                     break;
                   default:
                     printf("Unhandled shading case!\n");
