@@ -33,6 +33,7 @@ typedef struct {
     Color *color; // Color information for each vertex
     Vector *normal; // Surface normal information for each vertex
     int zBuffer; // Whether to use the z-buffer - should default to true (1)
+    Point centroid; // centroid of the polygon
 } Polygon;
 
 Polygon *polygon_create(void);
@@ -49,5 +50,6 @@ void polygon_draw(Polygon *p, Image *src, Color c);
 void polygon_drawFill(Polygon *p, Image *src, Color c, DrawState* ds);
 void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c, DrawState* ds);
 void polygon_drawFillB(Polygon *p, Image *src, Color c);
+void polygon_computeCentroid(Polygon *p);
 
 #endif

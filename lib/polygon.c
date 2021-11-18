@@ -71,6 +71,7 @@ Polygon *polygon_createp(int numV, Point *vlist) {
         toReturn->normal[i].val[1] = 0.0;
         toReturn->normal[i].val[2] = 1.0;
     }
+    polygon_computeCentroid(toReturn);
 
     return(toReturn);
 }
@@ -108,6 +109,7 @@ void polygon_init(Polygon *p) {
     p->nVertex = 0;
     p->zBuffer = 1;
     p->oneSided = 1;
+    point_set3D(&p->centroid, 0.0, 0.0, 0.0);
 }
 
 /**
@@ -173,6 +175,8 @@ void polygon_set(Polygon *p, int numV, Point *vlist) {
         p->normal[i].val[1] = 0.0;
         p->normal[i].val[2] = 1.0;
     }
+
+    polygon_computeCentroid(p);
 }
 
 /**
@@ -197,6 +201,35 @@ void polygon_clear(Polygon *p) {
     p->nVertex = 0;
     p->oneSided = 1;
     p->zBuffer = 1;
+    point_set3D(&p->centroid, 0.0, 0.0, 0.0);
+}
+
+/**
+ * If p->vertex exists, computes the centroid from the values of p->vertex and
+ * sets it. Otherwise, sets the centroid to the origin.
+ */
+void polygon_computeCentroid(Polygon *p) {
+    if (!p->vertex) {
+        point_set3D(&p->centroid, 0.0, 0.0, 0.0);
+        return;
+    }
+
+    // If we get here, then we know we do have vertices. The centroid is the
+    // average of all the points:
+    double x = 0;
+    double y = 0;
+    double z = 0;
+    for (int i = 0; i < p->nVertex; i++) {
+        x = x + p->vertex[i].val[0];
+        y = y + p->vertex[i].val[1];
+        z = z + p->vertex[i].val[2];
+    }
+
+    // Normalize the centroid:
+    x = x / p->nVertex;
+    y = y / p->nVertex;
+    z = z / p->nVertex;
+    point_set3D(&p->centroid, x, y, z);
 }
 
 /**
@@ -225,6 +258,7 @@ void polygon_copy(Polygon *to, Polygon *from) {
     to->nVertex = from->nVertex;
     to->oneSided = from->oneSided;
     to->zBuffer = from->zBuffer;
+    point_copy(&to->centroid, &from->centroid);
 
     // Malloc the internal space for vlist:
     to->vertex = (Point *) malloc(sizeof(Point) * to->nVertex);
@@ -294,6 +328,7 @@ void polygon_print(Polygon *p, FILE *fp) {
 void polygon_normalize(Polygon *p) {
     for (int i = 0; i < p->nVertex; i++) {
         point_normalize(&p->vertex[i]);
+        point_normalize(&p->centroid);
     }
 }
 

@@ -366,7 +366,8 @@ void matrix_xformPolygon(Matrix *m, Polygon *p) {
             matrix_xformVector(m, &(p->normal[i]), &(p->normal[i]));
         }
     }
-
+    // Transform the centroid:
+    matrix_xformPoint(m, &p->centroid, &p->centroid);
 }
 
 /**
