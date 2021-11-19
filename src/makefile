@@ -200,6 +200,9 @@ animated_bezier: $(ODIR)/animated_bezier.o
 pbil: $(ODIR)/pbil.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+tie-fighter-volume: $(ODIR)/tie-fighter-volume.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
 

@@ -465,6 +465,7 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
         switch (i->type)
         {
         case ObjColor:
+            printf("editing module color\n");
             color_copy(&(ds->color), &(i->obj.color));
             break;
         
@@ -557,7 +558,6 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             if (ds->shade == ShadeFrame) {
                 polygon_draw(p, src, ds->color);
             } else {
-                // If DS->shade is ShadeConstant -> draw filled using DS->color
                 polygon_drawFill(p, src, ds->color, ds);
                 // polygon_print(p, stdout);
             }

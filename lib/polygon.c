@@ -270,7 +270,6 @@ void polygon_copy(Polygon *to, Polygon *from) {
         to->normal[i].val[1] = from->normal[i].val[1];
         to->normal[i].val[2] = from->normal[i].val[2];
     }
-    
 }
 
 /**
@@ -639,8 +638,6 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c, DrawStat
                   case ShadeDepth:;
                     Color newColor;
                     color_set(&newColor, 1.4*c.c[0] - 1/curZ, 1.4*c.c[1] - 1/curZ, 1.4*c.c[2] - 1/curZ);
-                    // printf("curZ = %f at (%d, %d)\n", curZ, scan, i);
-
                     image_setColor(src, scan, i, newColor);
                     break;
                   default:

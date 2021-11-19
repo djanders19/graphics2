@@ -4,7 +4,7 @@
  * Draws a few formations of tie-fighters. Tie-fighters are defined using a
  * hierarchical modeling (as defined in modeling.c); each tie fighter is made up
  * of a body module with two wing sub-modules. Formations are in turn made up of
- * tie-fighter submodules.
+ * tie-fighter submodules. a
  */
 
 #include <stdio.h>

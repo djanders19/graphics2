@@ -53,9 +53,7 @@ int main(int argc, char *argv[]) {
   cube = module_create();
   module_scale( cube, 3, 1, 2 );
   module_color( cube, &Grey );
-  printf("break 1.0\n");
   module_cube( cube, 1);
-  printf("break 2.0\n");
 
 
   ds = drawstate_create();
