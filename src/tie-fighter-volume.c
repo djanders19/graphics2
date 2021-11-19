@@ -1,10 +1,8 @@
 /**
  * David J. Anderson - November 2021
  * 
- * Draws a few formations of tie-fighters. Tie-fighters are defined using a
- * hierarchical modeling (as defined in modeling.c); each tie fighter is made up
- * of a body module with two wing sub-modules. Formations are in turn made up of
- * tie-fighter submodules.
+ * Draws a formation of tie-fighters, now rendered as solid polygons using z-
+ * buffer rendering.
  */
 #include <stdio.h>
 #include <stdlib.h>
