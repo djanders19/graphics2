@@ -188,6 +188,12 @@ test7_curves: $(ODIR)/test7_curves.o
 test7_sail: $(ODIR)/test7_sail.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test8a: $(ODIR)/test8a.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+cubism: $(ODIR)/cubism.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 animated_bezier: $(ODIR)/animated_bezier.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 

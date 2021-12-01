@@ -558,7 +558,8 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
                 polygon_draw(p, src, ds->color);
             } else {
                 // If DS->shade is ShadeConstant -> draw filled using DS->color
-                polygon_drawFill(p, src, ds->color);
+                polygon_drawFill(p, src, ds->color, ds);
+                // polygon_print(p, stdout);
             }
 
             polygon_free(p);
@@ -759,7 +760,7 @@ void module_rotateXYZ(Module *md, Vector *u, Vector *v, Vector *w) {
  */
 void module_cube(Module *md, int solid) {
     Point p[8]; // All of the corners of the cube
-    Polygon side[6]; // Sides of the cube if drawing solids
+    Polygon side; // Sides of the cube if drawing solids
     Line edge[12]; // Edges of the cube if drawing lines
     Point tv[4]; // points to be used when actually
     int i;
@@ -800,48 +801,70 @@ void module_cube(Module *md, int solid) {
             module_line(md, &(edge[i]));
         }
     } else {
-        for (i = 0; i < 6; i++) {
-            polygon_init(&(side[i]));
-        }
+        polygon_init(&side);
 
         // Top side:
-        polygon_set(&(side[0]), 4, &(p[0]));
+        polygon_set(&(side), 4, &(p[0]));
+        Vector normal = {{0.0, 1.0, 0.0}};
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
         // Bottom side:
-        polygon_set(&(side[1]), 4, &(p[4]));
+        polygon_set(&(side), 4, &(p[4]));
+        vector_set(&normal, 0.0, -1.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // front side:
+        // front side (positive z):
         point_copy(&(tv[0]), &(p[0]));
         point_copy(&(tv[1]), &(p[3]));
         point_copy(&(tv[2]), &(p[7]));
         point_copy(&(tv[3]), &(p[4]));
-        polygon_set(&(side[2]), 4, &(tv[0]));
+        polygon_set(&(side), 4, &(tv[0]));
+        vector_set(&normal, 0.0, 0.0, 1.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // back side:
+        // back side (negative z):
         point_copy(&(tv[0]), &(p[1]));
         point_copy(&(tv[1]), &(p[2]));
         point_copy(&(tv[2]), &(p[6]));
         point_copy(&(tv[3]), &(p[5]));
-        polygon_set(&(side[3]), 4, &(tv[0]));
+        polygon_set(&(side), 4, &(tv[0]));
+        vector_set(&normal, 0.0, 0.0, -1.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // left side (as viewed from positive y-axis looking to decreasing vals)
+        // left side (negative x)
         point_copy(&(tv[0]), &(p[3]));
         point_copy(&(tv[1]), &(p[2]));
         point_copy(&(tv[2]), &(p[6]));
         point_copy(&(tv[3]), &(p[7]));
-        polygon_set(&(side[4]), 4, &(tv[0]));
+        polygon_set(&(side), 4, &(tv[0]));
+        vector_set(&normal, -1.0, 0.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
 
-        // right side:
+        // right side (positive x):
         point_copy(&(tv[0]), &(p[0]));
         point_copy(&(tv[1]), &(p[1]));
         point_copy(&(tv[2]), &(p[5]));
         point_copy(&(tv[3]), &(p[4]));
-        polygon_set(&(side[5]), 4, &(tv[0]));
+        polygon_set(&(side), 4, &(tv[0]));
+        vector_set(&normal, 1.0, 0.0, 0.0);
+        for (i = 0; i < 4; i++) vector_copy(&side.normal[i], &normal);
+        module_polygon(md, &side);
+        polygon_clear(&side);
         
-        for (i = 0; i < 6; i++) {
-            module_polygon(md, &(side[i])); // Add the polygon to the module
-            polygon_free(&(side[i])); // free the polygon
-        }
+        // for (i = 0; i < 2; i++) {
+        //     module_polygon(md, &(side[i])); // Add the polygon to the module
+        //     polygon_clear(&(side[i])); // free the polygon
+        // }
     }
 }
 

@@ -11,7 +11,7 @@
 #ifndef VIEWS_H
 
 #define VIEWS_H
-#include "matrix.h"
+#include "graphicslib.h"
 
 typedef struct {
     Point vrp; // Center of the view rectangle in world coordinates

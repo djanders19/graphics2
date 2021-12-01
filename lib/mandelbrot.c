@@ -17,8 +17,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include "image.h"
-#include "mandelbrot.h"
+#include "graphicslib.h"
 
 #define ITERATIONS 1000
 

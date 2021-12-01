@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
-#include "graphics.h"
+#include "graphicslib.h"
 
 
 /* POINT PRIMITIVES */
@@ -150,252 +150,429 @@ void line_draw(Line *l, Image *src, Color c) {
     int i = 0;
     int x1 = l->b.val[0];
     int y1 = l->b.val[1];
+    float z1 = 1 / l->b.val[2];
 
     // Initial coordinates for starting point; swap if swapping points
     int x = l->a.val[0];
     int y = l->a.val[1];
+    float z = 1 / l->a.val[2];
     int dx = x1 - x; // x1 - x0
     int dy = y1 - y; // y1 - y0
+    float dz = z1 - z; // z1 - z0, accounting for projection
 
-    // Special case: vertical line
-    if (dx == 0) {
-        if (dy >= 0) {
-            // Bottom to top:
-            for (i = 0; i < dy; i++) {
-                // Color the pixel to the right
-                index = (src->cols * y) + x;
-                if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                    src->data[index].rgb[0] = c.c[0];
-                    src->data[index].rgb[1] = c.c[1]; 
-                    src->data[index].rgb[2] = c.c[2];
+    switch (l->zBuffer) {
+        case 0:
+            // Special case: vertical line
+            if (dx == 0) {
+                if (dy >= 0) {
+                    // Bottom to top:
+                    for (i = 0; i < dy; i++) {
+                        // Color the pixel to the right
+                        index = (src->cols * y) + x;
+                        if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        }
+                        y = y + 1;
+                    }
+                } else {
+                    // top to bottom
+                    for (i = 0; i > dy; i--) {
+                        // Color the pixel to the left
+                        index = (src->cols * (y - 1)) + x - 1;
+                        if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        }
+                        y = y - 1;
+                    }
                 }
-                y = y + 1;
+
+                return;
             }
-        } else {
-            // top to bottom
-            for (i = 0; i > dy; i--) {
-                // Color the pixel to the left
-                index = (src->cols * (y - 1)) + x - 1;
-                if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                    src->data[index].rgb[0] = c.c[0];
-                    src->data[index].rgb[1] = c.c[1]; 
-                    src->data[index].rgb[2] = c.c[2];
+
+            // special case: drawing a horizontal line.
+            if (dy == 0) {
+                if (dx >= 0) {
+                    // Left to right:
+                    for (i = 0; i < dx; i++) {
+                        // Color the pixel above theoretical axis
+                        index = (src->cols * (y - 1)) + x;
+                        if (!(index < 0) && !(index > maxIndex) && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        } else if (index > maxIndex) {
+                            return; // stop drawing
+                        }
+                        x = x + 1;
+                    }
+                } else {
+                    // right to left:
+                    for (i = 0; i > dx; i--) {
+                        // Color the pixel below the theoretical axis
+                        // don't light up rightmost pixel
+                        index = (src->cols * y) + x - 1;
+                        if (!(index < 0) && !(index > maxIndex) && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        } else if (index < 0) {
+                            return; // stop drawing, don't waste time
+                        }
+                        x = x - 1;
+                    }
                 }
-                y = y - 1;
+                return;
             }
-        }
 
-        return;
-    }
+            if (dy < 0) {
+                // Swap the points so we're drawing from bottom to top
+                x1 = l->a.val[0];
+                y1 = l->a.val[1];
 
-    // special case: drawing a horizontal line.
-    if (dy == 0) {
-        if (dx >= 0) {
-            // Left to right:
-            for (i = 0; i < dx; i++) {
-                // Color the pixel above theoretical axis
-                index = (src->cols * (y - 1)) + x;
-                if (!(index < 0) && !(index > maxIndex) && x < xmax) {
-                    src->data[index].rgb[0] = c.c[0];
-                    src->data[index].rgb[1] = c.c[1]; 
-                    src->data[index].rgb[2] = c.c[2];
-                } else if (index > maxIndex) {
-                    return; // stop drawing
+                x = l->b.val[0];
+                y = l->b.val[1];
+
+                dy = y1 - y; // y1 - y0
+                dx = x1 - x; // x1 - x0
+            }
+
+            int e_prime = 3 * dy - 2 * dx; // initialize e_prime
+
+            if (dx > 0 && dx >= dy) {
+                // first octant
+                for (i = 0; i < dx; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        y = y + 1; // Move up
+                        e_prime = e_prime - 2 * dx; // subtract 2dx
+                    }
+
+                    // We always move across, so we add dy to our error:
+                    x = x + 1;
+                    e_prime = e_prime + 2 * dy; // move across, add dy
                 }
-                x = x + 1;
+                return;
             }
-        } else {
-            // right to left:
-            for (i = 0; i > dx; i--) {
-                // Color the pixel below the theoretical axis
-                // don't light up rightmost pixel
-                index = (src->cols * y) + x - 1;
-                if (!(index < 0) && !(index > maxIndex) && x < xmax) {
-                    src->data[index].rgb[0] = c.c[0];
-                    src->data[index].rgb[1] = c.c[1]; 
-                    src->data[index].rgb[2] = c.c[2];
-                } else if (index < 0) {
-                    return; // stop drawing, don't waste time
+
+            if (dx > 0 && dx < dy) {
+                // 2nd octant
+                // flip roles of x and y
+                e_prime = 3 * dx - 2 * dy; // initialize e_prime
+                for (i = 0; i < dy; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        x = x + 1; // Move across
+                        e_prime = e_prime - 2 * dy; // subtract 2dy
+                    }
+
+                    // We always move up, so we add dy to our error:
+                    y = y + 1;
+                    e_prime = e_prime + 2 * dx; // move across, add dx
                 }
-                x = x - 1;
+
+                return;
+            } 
+
+            if (dx < 0 && dx < -dy) {
+                // 3rd octant
+                // Flip roles & subtract from x
+                e_prime = 3 * dy + 2 * dx; // initialize e_prime
+                for (i = 0; i > dx; i--) {
+                    // Color the pixel
+                    // image_setColor(src, y, x-1, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        y = y + 1;
+                        e_prime = e_prime + 2 * dx; // subtract 2dy
+                    }
+
+                    // We always move up, so we add dy to our error:
+                    x = x - 1; // Move across
+                    e_prime = e_prime + 2 * dy; // move across, add dx
+                }
+                return;
+            } 
+
+            if (dx < 0 && dx >= -dy) {
+                // 4th octant
+                // subtract from x
+                e_prime = 3 * dx + 2 * dy; // initialize e_prime
+                for (i = 0; i < dy; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x-1, c);
+
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime < 0) {
+                        x = x - 1; // Move across
+                        e_prime = e_prime + 2 * dy; // subtract 2dx
+                    }
+
+                    // We always move across, so we add dy to our error:
+                    y = y + 1;
+                    e_prime = e_prime + 2 * dx; // move across, add dy
+                }
+                return;
             }
-        }
-        return;
+
+            // Shouldn't ever hit this, but useful for debugging:
+            printf("Unhandled case\n\n\n");
+            break;
+
+        default:
+            // In this case, we are using the z-buffer line drawing algorithm
+            // Special case: vertical line
+            if (dx == 0) {
+                if (dy >= 0) {
+                    // Bottom to top:
+                    for (i = 0; i < dy; i++) {
+                        // Color the pixel to the right
+                        index = (src->cols * y) + x;
+                        if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        }
+                        y = y + 1;
+                    }
+                } else {
+                    // top to bottom
+                    for (i = 0; i > dy; i--) {
+                        // Color the pixel to the left
+                        index = (src->cols * (y - 1)) + x - 1;
+                        if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        }
+                        y = y - 1;
+                    }
+                }
+
+                return;
+            }
+
+            // special case: drawing a horizontal line.
+            if (dy == 0) {
+                if (dx >= 0) {
+                    // Left to right:
+                    for (i = 0; i < dx; i++) {
+                        // Color the pixel above theoretical axis
+                        index = (src->cols * (y - 1)) + x;
+                        if (!(index < 0) && !(index > maxIndex) && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        } else if (index > maxIndex) {
+                            return; // stop drawing
+                        }
+                        x = x + 1;
+                    }
+                } else {
+                    // right to left:
+                    for (i = 0; i > dx; i--) {
+                        // Color the pixel below the theoretical axis
+                        // don't light up rightmost pixel
+                        index = (src->cols * y) + x - 1;
+                        if (!(index < 0) && !(index > maxIndex) && x < xmax) {
+                            src->data[index].rgb[0] = c.c[0];
+                            src->data[index].rgb[1] = c.c[1]; 
+                            src->data[index].rgb[2] = c.c[2];
+                        } else if (index < 0) {
+                            return; // stop drawing, don't waste time
+                        }
+                        x = x - 1;
+                    }
+                }
+                return;
+            }
+
+            if (dy < 0) {
+                // Swap the points so we're drawing from bottom to top
+                x1 = l->a.val[0];
+                y1 = l->a.val[1];
+                z1 = 1 / l->a.val[2];
+
+                x = l->b.val[0];
+                y = l->b.val[1];
+                z = 1 / l->b.val[2];
+
+                dy = y1 - y; // y1 - y0
+                dx = x1 - x; // x1 - x0
+                dz = z1 - z;
+            }
+
+            e_prime = 3 * dy - 2 * dx; // initialize e_prime
+
+            if (dx > 0 && dx >= dy) {
+                // first octant
+                // We are moving in x, so we interpolate dz in terms of dx
+                dz = dz / dx;
+                for (i = 0; i < dx; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax && z > src->depth[index]) {
+                        src->depth[index] = z;
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        y = y + 1; // Move up
+                        e_prime = e_prime - 2 * dx; // subtract 2dx
+                    }
+
+                    // We always move across, so we add dy to our error:
+                    x = x + 1;
+                    z = z + dz;
+                    e_prime = e_prime + 2 * dy; // move across, add dy
+                }
+                return;
+            }
+
+            if (dx > 0 && dx < dy) {
+                // 2nd octant
+                // flip roles of x and y
+                // We are moving in y, so we interpolate dz in terms of dy
+                dz = dz / dy;
+                e_prime = 3 * dx - 2 * dy; // initialize e_prime
+                for (i = 0; i < dy; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax && z > src->depth[index]) {
+                        src->depth[index] = z;
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        x = x + 1; // Move across
+                        e_prime = e_prime - 2 * dy; // subtract 2dy
+                    }
+
+                    // We always move up, so we add dy to our error:
+                    y = y + 1;
+                    z = z + dz;
+                    e_prime = e_prime + 2 * dx; // move across, add dx
+                }
+
+                return;
+            } 
+
+            if (dx < 0 && dx < -dy) {
+                // 3rd octant
+                // Flip roles & subtract from x
+                // We are moving in y, so we interpolate dz in terms of dy
+                dz = dz / dy;
+                e_prime = 3 * dy + 2 * dx; // initialize e_prime
+                for (i = 0; i > dx; i--) {
+                    // Color the pixel
+                    // image_setColor(src, y, x-1, c);
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax && z > src->depth[index]) {
+                        src->depth[index] = z;
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime > 0) {
+                        y = y + 1;
+                        e_prime = e_prime + 2 * dx; // subtract 2dy
+                    }
+
+                    // We always move up, so we add dy to our error:
+                    x = x - 1; // Move across
+                    z = z + dz;
+                    e_prime = e_prime + 2 * dy; // move across, add dx
+                }
+                return;
+            } 
+
+            if (dx < 0 && dx >= -dy) {
+                // 4th octant
+                // subtract from x
+                // We are moving in x, so we interpolate dz in terms of dx
+                dz = dz / dx;
+                e_prime = 3 * dx + 2 * dy; // initialize e_prime
+                for (i = 0; i < dy; i++) {
+                    // Color the pixel
+                    // image_setColor(src, y, x-1, c);
+
+                    index = (src->cols * y) + x;
+                    if (!(index < 0) && !(index > maxIndex) && 
+                        x >= 0 && x < xmax && z > src->depth[index]) {
+                        src->depth[index] = z;
+                        src->data[index].rgb[0] = c.c[0];
+                        src->data[index].rgb[1] = c.c[1]; 
+                        src->data[index].rgb[2] = c.c[2];
+                    }
+
+                    while (e_prime < 0) {
+                        x = x - 1; // Move across
+                        e_prime = e_prime + 2 * dy; // subtract 2dx
+                    }
+
+                    // We always move across, so we add dy to our error:
+                    y = y + 1;
+                    z = z + dz;
+                    e_prime = e_prime + 2 * dx; // move across, add dy
+                }
+                return;
+            }
+
+            // Shouldn't ever hit this, but useful for debugging:
+            printf("Unhandled case\n\n\n");
+            break;
     }
 
-    if (dy < 0) {
-        // Swap the points so we're drawing from bottom to top
-        x1 = l->a.val[0];
-        y1 = l->a.val[1];
-
-        x = l->b.val[0];
-        y = l->b.val[1];
-
-        dy = y1 - y; // y1 - y0
-        dx = x1 - x; // x1 - x0
-    }
-    
-    int e_prime = 3 * dy - 2 * dx; // initialize e_prime
-
-    if (dx > 0 && dx >= dy) {
-        // first octant
-        for (i = 0; i < dx; i++) {
-            // Color the pixel
-            // image_setColor(src, y, x, c);
-            index = (src->cols * y) + x;
-            if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                src->data[index].rgb[0] = c.c[0];
-                src->data[index].rgb[1] = c.c[1]; 
-                src->data[index].rgb[2] = c.c[2];
-            }
-
-            while (e_prime > 0) {
-                y = y + 1; // Move up
-                e_prime = e_prime - 2 * dx; // subtract 2dx
-            }
-
-            // We always move across, so we add dy to our error:
-            x = x + 1;
-            e_prime = e_prime + 2 * dy; // move across, add dy
-        }
-        return;
-    }
-    
-    if (dx > 0 && dx < dy) {
-        // 2nd octant
-        // flip roles of x and y
-        e_prime = 3 * dx - 2 * dy; // initialize e_prime
-        for (i = 0; i < dy; i++) {
-            // Color the pixel
-            // image_setColor(src, y, x, c);
-            index = (src->cols * y) + x;
-            if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                src->data[index].rgb[0] = c.c[0];
-                src->data[index].rgb[1] = c.c[1]; 
-                src->data[index].rgb[2] = c.c[2];
-            }
-
-            while (e_prime > 0) {
-                x = x + 1; // Move across
-                e_prime = e_prime - 2 * dy; // subtract 2dy
-            }
-
-            // We always move up, so we add dy to our error:
-            y = y + 1;
-            e_prime = e_prime + 2 * dx; // move across, add dx
-        }
-
-        return;
-    } 
-    
-    if (dx < 0 && dx < -dy) {
-        // 3rd octant
-        // Flip roles & subtract from x
-        e_prime = 3 * dy + 2 * dx; // initialize e_prime
-        for (i = 0; i > dx; i--) {
-            // Color the pixel
-            // image_setColor(src, y, x-1, c);
-            index = (src->cols * y) + x;
-            if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                src->data[index].rgb[0] = c.c[0];
-                src->data[index].rgb[1] = c.c[1]; 
-                src->data[index].rgb[2] = c.c[2];
-            }
-
-            while (e_prime > 0) {
-                y = y + 1;
-                e_prime = e_prime + 2 * dx; // subtract 2dy
-            }
-
-            // We always move up, so we add dy to our error:
-            x = x - 1; // Move across
-            e_prime = e_prime + 2 * dy; // move across, add dx
-        }
-        return;
-    } 
-    
-    if (dx < 0 && dx >= -dy) {
-        // 4th octant
-        // subtract from x
-        e_prime = 3 * dx + 2 * dy; // initialize e_prime
-        for (i = 0; i < dy; i++) {
-            // Color the pixel
-            // image_setColor(src, y, x-1, c);
-            
-            index = (src->cols * y) + x;
-            if (!(index < 0) && !(index > maxIndex) && 
-                x >= 0 && x < xmax) {
-                src->data[index].rgb[0] = c.c[0];
-                src->data[index].rgb[1] = c.c[1]; 
-                src->data[index].rgb[2] = c.c[2];
-            }
-            
-            while (e_prime < 0) {
-                x = x - 1; // Move across
-                e_prime = e_prime + 2 * dy; // subtract 2dx
-            }
-
-            // We always move across, so we add dy to our error:
-            y = y + 1;
-            e_prime = e_prime + 2 * dx; // move across, add dy
-        }
-        return;
-    }
-    
-    // Shouldn't ever hit this, but useful for debugging:
-    // printf("Unhandled case\n\n\n");
 }
-
-// /**
-//  * Helper function for pthread_line_draw.
-//  */
-// void *thread1 (void *input) {
-//     line_draw(((struct args*)input)->l, 
-//               ((struct args*)input)->src,
-//               ((struct args*)input)->c);
-//     return NULL;
-// }
-
-// /**
-//  * A multithreaded implementation of line_draw. Despite my best attempts, it 
-//  * remains significantly slower than line_draw and should be avoided for the
-//  * time being.
-//  */
-// void pthread_line_draw(Line *l, Image *src, Color c) {
-//     pthread_t* tid = malloc(2 * sizeof(pthread_t));
-//     Line l1, l2;
-//     // printf("%f, %f\n", l->b.val[0], l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2);
-//     int midx = l->b.val[0] - (l->b.val[0] - l->a.val[0]) / 2;
-//     int midy = l->b.val[1] - (l->b.val[1] - l->a.val[1]) / 2;
-//     Point midpoint;
-//     point_set2D(&midpoint, midx, midy);
-//     line_set(&l1, l->a, midpoint);
-//     line_set(&l2, midpoint, l->b);
-//     struct args *line1 = (struct args *) malloc(sizeof(struct args));
-//     struct args *line2 = (struct args *) malloc(sizeof(struct args));
-    
-//     line1->c = c;
-//     line1->l = &l1;
-//     line1->src = src;
-
-//     line2->c = c;
-//     line2->l = &l2;
-//     line2->src = src;
-//     // line_draw(&l1, src, c);
-//     // line_draw(&l2, src, c);
-//     pthread_create(&(tid[0]), NULL, thread1, (void *)line1);
-//     pthread_create(&(tid[1]), NULL, thread1, (void *)line2);
-//     pthread_join(tid[0], NULL);
-//     pthread_join(tid[1], NULL);
-//     free(line1);
-//     free(line2);
-//     free(tid);
-// }
 
 
 /* CIRCLE PRIMITIVES */

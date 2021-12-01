@@ -7,7 +7,7 @@
  * 3D matrices as is necessary for defining translations from one graphical
  * coordinate system to another.
  */
-#include "matrix.h"
+#include "graphicslib.h"
 #include <stdlib.h>
 
 /* 2D & GENERIC MATRIX PROTOTYPES */
