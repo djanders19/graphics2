@@ -203,6 +203,12 @@ pbil: $(ODIR)/pbil.o
 tie-fighter-volume: $(ODIR)/tie-fighter-volume.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test9d: $(ODIR)/test9d.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
+testLighting_shading: $(ODIR)/testLighting_shading.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
 
