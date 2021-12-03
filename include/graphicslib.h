@@ -13,11 +13,11 @@
 #include "julia.h"
 #include "horizontalSin.h"
 #include "graphics.h"
+#include "lighting.h"
 #include "drawstate.h"
 #include "polygon.h"
 #include "matrix.h"
 #include "views.h"
-#include "lighting.h"
 #include "bezier.h"
 #include "modeling.h"
 

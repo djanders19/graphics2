@@ -47,7 +47,11 @@ void polygon_print(Polygon *p, FILE *fp);
 void polygon_normalize(Polygon *p);
 void polygon_draw(Polygon *p, Image *src, Color c);
 void polygon_drawFill(Polygon *p, Image *src, Color c, DrawState* ds);
+void polygon_drawShade(Polygon *p, Image *src, DrawState *ds, Lighting *light);
 void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c, DrawState* ds);
 void polygon_drawFillB(Polygon *p, Image *src, Color c);
+
+/* Utility functions */
+void polygon_shade(Polygon *p, Lighting *lighting, DrawState *ds);
 
 #endif
