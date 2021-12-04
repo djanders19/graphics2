@@ -437,25 +437,15 @@ static int compXIntersect( const void *a, const void *b ) {
 
 /*
 	Allocates, creates, fills out, and returns an Edge structure given
-	the inputs.
-
-	Current inputs are just the start and end location in image space.
-	Eventually, the points will be 3D and we'll add color and texture
-	coordinates.
+	the inputs. Allows for the interpolation of depth, x coordinate, and
+    color.
  */
 static Edge *makeEdgeRec(Point start, Point end, Image *src, Color c1, Color c2) {
-	// float dscan = end.val[1] - start.val[1];
 	Point temp;
+    Color tempC;
 
-	/******
-				 Your code starts here
-	******/
-	// Check that start/end are properly ordered (start should have lower y):
-	if (start.val[1] > end.val[1]) {
-		temp = start;
-		start = end;
-		end = temp;
-	}
+	// We check that start/end are ordered properly in the input to this, so
+    // there is no need to check again here.
 
 	// Check if the starting row is below the image or the end row is
 	// above the image and skip the edge if either is true
@@ -476,7 +466,10 @@ static Edge *makeEdgeRec(Point start, Point end, Image *src, Color c1, Color c2)
 	edge->x1 = end.val[0];
 	edge->y1 = end.val[1];
     edge->z1 = end.val[2];
-
+    printf("makeEdgeRec(): from (%f, %f, %f) to (%f, %f, %f)\n",
+            edge->x0, edge->y0, edge->z0, edge->x1, edge->y1, edge->z1);
+    printf("Color from (%f, %f, %f) to (%f, %f, %f)\n",
+    c1.c[0], c1.c[1], c1.c[2], c2.c[0], c2.c[1], c2.c[2]);
 	// turn on an edge only if the edge starts in the top half of it or
 	// the lower half of the pixel above it.  In other words, round the
 	// start y value to the nearest integer and assign it to
@@ -500,9 +493,13 @@ static Edge *makeEdgeRec(Point start, Point end, Image *src, Color c1, Color c2)
 
     // Calculate ddPerScan. This is a bit more complex as it requires us to
     // interpolate three separate values:
-    edge->dcPerScan.c[0] = (c2.c[0]/end.val[2] - c1.c[0]/start.val[2] ) / dscan;
-    edge->dcPerScan.c[1] = (c2.c[1]/end.val[2] - c1.c[1]/start.val[2] ) / dscan;
-    edge->dcPerScan.c[2] = (c2.c[2]/end.val[2] - c1.c[2]/start.val[2] ) / dscan;
+    printf("c2.c[0] / end.val[2] = %f\n", c2.c[0]/end.val[2]);
+    printf("c1.c[0] / start.val[2] = %f\n", c1.c[0]/start.val[2]);
+    printf("end.val[2] = %f\n", end.val[2]);
+    printf("start.val[2] = %f\n", start.val[2]);
+    edge->dcPerScan.c[0] = (c2.c[0]/end.val[2] - c1.c[0]/start.val[2]) / dscan;
+    edge->dcPerScan.c[1] = (c2.c[1]/end.val[2] - c1.c[1]/start.val[2]) / dscan;
+    edge->dcPerScan.c[2] = (c2.c[2]/end.val[2] - c1.c[2]/start.val[2]) / dscan;
 
 	// Calculate xIntersect, adjusting for the fraction of the point in the pixel.
 	// Scanlines go through the middle of pixels
@@ -516,13 +513,13 @@ static Edge *makeEdgeRec(Point start, Point end, Image *src, Color c1, Color c2)
     // aliasing issue in terms of rounding the the start and end, *and* if we
     // improve our system to have some sorta falloff we have to take *that*
     // into account. Overall though this is very similar to zIntersect:
-    edge->cIntersect.c[0] = c1.c[0] / end.val[2] +
+    edge->cIntersect.c[0] = c1.c[0] / start.val[2] +
                             edge->dcPerScan.c[0] * 
                             ((edge->yStart + 0.5) - edge->y0);
-    edge->cIntersect.c[1] = c1.c[1] / end.val[2] +
+    edge->cIntersect.c[1] = c1.c[1] / start.val[2] +
                             edge->dcPerScan.c[1] * 
                             ((edge->yStart + 0.5) - edge->y0);
-    edge->cIntersect.c[2] = c1.c[2] / end.val[2] +
+    edge->cIntersect.c[2] = c1.c[2] / start.val[2] +
                             edge->dcPerScan.c[2] * 
                             ((edge->yStart + 0.5) - edge->y0);
     
@@ -565,7 +562,10 @@ static Edge *makeEdgeRec(Point start, Point end, Image *src, Color c1, Color c2)
             edge->xIntersect = edge->x1;
         }
     }
-
+    printf("Returning edge with cIntersect = (%f, %f, %f)\n"
+    "and dcPerScan = (%f, %f, %f)\n\n", 
+    edge->cIntersect.c[0], edge->cIntersect.c[1], edge->cIntersect.c[2],
+    edge->dcPerScan.c[0], edge->dcPerScan.c[1], edge->dcPerScan.c[2]);
 	// return the newly created edge data structure
 	return(edge);
 }
@@ -586,23 +586,30 @@ static LinkedList *setupEdgeList(Polygon *p, Image *src) {
 
 	// walk around the polygon, starting with the last point
 	v1 = p->vertex[p->nVertex-1];
+
     color_copy(&c1, &p->color[p->nVertex - 1]);
 	for(i=0;i<p->nVertex;i++) {
-		
+		printf("setupEdgeList(): i = %d\n", i);
 		// the current point (i) is the end of the segment
 		v2 = p->vertex[i];
         color_copy(&c2, &p->color[i]);
+        printf("v1 = (%f, %f, %f), v2 = (%f, %f, %f)\n", 
+        v1.val[0], v1.val[1], v1.val[2], v2.val[0], v2.val[1], v2.val[2]);
+        printf("c1 = (%f, %f, %f), c2 = (%f, %f, %f)\n", 
+        c1.c[0], c1.c[1], c1.c[2], c2.c[0], c2.c[1], c2.c[2]);
 		// if it is not a horizontal line
-		if( (int)(v1.val[1]+0.5) != (int)(v2.val[1]+0.5) ) {
+		if((int)(v1.val[1]+0.5) != (int)(v2.val[1]+0.5)) {
 			Edge *edge;
 			// if the first coordinate is smaller (top edge)
-			if( v1.val[1] < v2.val[1] ){
+			if(v1.val[1] < v2.val[1]){
+                printf("setupEdgeList(): Entering makeEdgeRec\n");
 				edge = makeEdgeRec(v1, v2, src, c1, c2);
             } else {
-				edge = makeEdgeRec(v2, v1, src, c1, c2);
+                printf("setupEdgeList(): Entering makeEdgeRec\n");
+				edge = makeEdgeRec(v2, v1, src, c2, c1);
             }
 			// insert the edge into the list of edges if it's not null
-			if( edge ) {
+			if(edge) {
 				ll_insert( edges, edge, compYStart );
             }
 		}
@@ -612,6 +619,7 @@ static LinkedList *setupEdgeList(Polygon *p, Image *src) {
 
 	// check for empty edges (like nothing in the viewport)
 	if(ll_empty(edges)) {
+        printf("setupEdgeList(): empty edge list\n");
 		ll_delete(edges, NULL);
 		edges = NULL;
 	}
@@ -628,44 +636,46 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c,
     int i, f;
 
     // loop over the list
-    p1 = ll_head( active );
+    p1 = ll_head(active);
     while(p1) {
-	// the edges have to come in pairs, draw from one to the next
-	p2 = ll_next( active );
-	if( !p2 ) {
-		printf("bad bad bad (your edges are not coming in pairs)\n"); // lol
-		break;
-	}
+	    // the edges have to come in pairs, draw from one to the next
+	    p2 = ll_next(active);
+	    if( !p2 ) {
+		    printf("bad bad bad (your edges are not coming in pairs)\n"); // lol
+		    break;
+	    }
 
-	// if the xIntersect values are the same, don't draw anything.
-	// Just go to the next pair.
-	if(p2->xIntersect == p1->xIntersect) {
-		p1 = ll_next(active);
-		continue;
-	}
+	    // if the xIntersect values are the same, don't draw anything.
+	    // Just go to the next pair.
+	    if(p2->xIntersect == p1->xIntersect) {
+		    p1 = ll_next(active);
+		    continue;
+	    }
 
-	/**** code below this point by David Anderson ****/
-    // Get current Z value and calculate dzPerColumn. As we move across the
-    // scanline column by column, we increment z by dzPerColumn
-    float dx = (p2->xIntersect - p1->xIntersect);
-    float curZ = p1->zIntersect;
-    float dzPerColumn = (p2->zIntersect - p1->zIntersect) / dx;
+    	/**** code below this point by David Anderson ****/
+        // Get current Z value and calculate dzPerColumn. As we move across the
+        // scanline column by column, we increment z by dzPerColumn
+        float dx = (p2->xIntersect - p1->xIntersect);
+        float curZ = p1->zIntersect;
+        // printf("CurZ initially: %f\n", curZ);
+        float dzPerColumn = (p2->zIntersect - p1->zIntersect) / dx;
+        // printf("Shading from (%f, %d, %f) to (%f, %d, %f)\n", p1->xIntersect, scan, p1->zIntersect,
+        // p2->xIntersect, scan, p2->zIntersect);
+        // Get current c value and calculate dcPerColumn. As we move across the
+        // scanline column by column, we increment c by dcPerColumn. Note that this
+        // necessitates three variables - one for each color channel.
+        Color dcPerColumn; // to represent the amount to change color as we move
+        Color curC; // To represent the color as we move across
+        color_copy(&curC, &p1->cIntersect);
+        dcPerColumn.c[0] = (p2->cIntersect.c[0] - p1->cIntersect.c[0]) / dx;
+        dcPerColumn.c[1] = (p2->cIntersect.c[1] - p1->cIntersect.c[1]) / dx;
+        dcPerColumn.c[2] = (p2->cIntersect.c[2] - p1->cIntersect.c[2]) / dx;
 
-    // Get current c value and calculate dcPerColumn. As we move across the
-    // scanline column by column, we increment c by dcPerColumn. Note that this
-    // necessitates three variables - one for each color channel.
-    Color dcPerColumn; // to represent the amount to change color as we move
-    Color curC; // To represent the color as we move across
-    color_copy(&curC, &p1->cIntersect);
-    dcPerColumn.c[0] = p2->cIntersect.c[0] - p1->cIntersect.c[0] / dx;
-    dcPerColumn.c[1] = p2->cIntersect.c[1] - p1->cIntersect.c[1] / dx;
-    dcPerColumn.c[2] = p2->cIntersect.c[2] - p1->cIntersect.c[2] / dx;
+    	// identify the starting column
+    	i = floor(p1->xIntersect);
 
-	// identify the starting column
-	i = floor(p1->xIntersect);
-
-	    // clip to the left side of the image
-	    if (i < 0) {
+    	// clip to the left side of the image
+    	if (i < 0) {
             // Remember, since i is less than 0 we're subtracting multiples of it;
             // this winds up being a double negative, so an addition.
             curZ = curZ - i * dzPerColumn; // adjust curZ to 0th column val
@@ -674,18 +684,19 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c,
             curC.c[0] = curC.c[0] - i * dcPerColumn.c[0];
             curC.c[1] = curC.c[1] - i * dcPerColumn.c[1];
             curC.c[2] = curC.c[2] - i * dcPerColumn.c[2];
-		    i = 0;
+    	    i = 0;
         }
 
-	    // identify the ending column
-	    f = floor(p2->xIntersect);
-	    // clip to the right side of the image
-	    if (f >= src->cols) {
+    	// identify the ending column
+    	f = floor(p2->xIntersect);
+    	// clip to the right side of the image
+    	if (f >= src->cols) {
             f = (src->cols);
         }
+        // printf("i = %d, f = %d, curZ = %f\n", i, f, curZ);
         Color newColor;
-	    // loop from start to end and color in the pixels
-	    while (i < f) {
+    	// loop from start to end and color in the pixels
+    	while (i < f) {
             // Check if the z value is greater than that in the image z-buffer
             // If it is, then we draw in. Otherwise, we just keep on going.
             if (curZ > image_getz(src, scan, i) && 
@@ -694,7 +705,7 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c,
                 case ShadeConstant:
                     image_setColor(src, scan, i, c);
                     break;
-                
+
                 case ShadeDepth:;
                     // Compute a new color based on depth:
                     color_set(&newColor, 1.4*c.c[0] - 1/curZ,   // r
@@ -707,28 +718,37 @@ static void fillScan(int scan, LinkedList *active, Image *src, Color c,
                     // shade the pixel curC * curZ (curC is in color/z units to
                     // account for perspective projection, so we multiply it by
                     // curZ to correct to the true color).
+                    // printf("Drawing\n");
+                    // printf("curC: (%f, %f, %f)\n", curC.c[0], curC.c[1], curC.c[2]);
+
                     color_set(&newColor, curC.c[0] * curZ,
                                         curC.c[1] * curZ,
                                         curC.c[2] * curZ);
                     image_setColor(src, scan, i, newColor);
                     break;
-                
+
                 default:
                     printf("Unhandled shading case!\n");
                     break;
                 }
-            // image_setColor(src, scan, i, c);
-            image_setz(src, scan, i, curZ);
-          }
-		  i++;
-          curZ = curZ + dzPerColumn;
-	  }
+                // image_setColor(src, scan, i, c);
+                image_setz(src, scan, i, curZ);
+            }
 
-	  // move ahead to the next pair of edges
-	  p1 = ll_next( active );
-  }
+    	    i++; // increment i
+            curZ = curZ + dzPerColumn; // update curZ
+            // update curC
+            // printf("dcPerColumn: (%f, %f, %f)\n", dcPerColumn.c[0], dcPerColumn.c[1], dcPerColumn.c[2]);
+            curC.c[0] = curC.c[0] + dcPerColumn.c[0];
+            curC.c[1] = curC.c[1] + dcPerColumn.c[1];
+            curC.c[2] = curC.c[2] + dcPerColumn.c[2];
+    	}
 
-	return;
+	    // move ahead to the next pair of edges
+	    p1 = ll_next( active );
+    }
+
+    return;
 }
 
 /* 
@@ -779,9 +799,9 @@ static int processEdgeList(LinkedList *edges, Image *src, Color c,\
 				// update the edge information with the dPerScan values
 				tedge->xIntersect += tedge->dxPerScan;
                 tedge->zIntersect += tedge->dzPerScan;
-                tedge->dcPerScan.c[0] += tedge->dcPerScan.c[0];
-                tedge->dcPerScan.c[1] += tedge->dcPerScan.c[1];
-                tedge->dcPerScan.c[2] += tedge->dcPerScan.c[2];
+                tedge->cIntersect.c[0] += tedge->dcPerScan.c[0];
+                tedge->cIntersect.c[1] += tedge->dcPerScan.c[1];
+                tedge->cIntersect.c[2] += tedge->dcPerScan.c[2];
 
 				// adjust in the case of partial overlap
 				if (tedge->dxPerScan < 0.0 && tedge->xIntersect < tedge->x1) {
@@ -824,9 +844,11 @@ void polygon_drawFill(Polygon *p, Image *src, Color c, DrawState* ds) {
 
 	// set up the edge list
 	edges = setupEdgeList(p, src);
-	if(!edges)
+	if(!edges) {
+        printf("no edge list\n");
 		return;
-	
+    }
+
 	// process the edge list (should be able to take an arbitrary edge list)
 	processEdgeList(edges, src, c, ds);
 
@@ -849,8 +871,10 @@ void polygon_drawShade(Polygon *p, Image *src, DrawState *ds, Lighting *light) {
 
 	// set up the edge list
 	edges = setupEdgeList(p, src);
-	if(!edges)
+	if(!edges) {
+        printf("no edge list\n");
 		return;
+    }
 	
 	// process the edge list (should be able to take an arbitrary edge list)
 	processEdgeList(edges, src, ds->color, ds);
@@ -934,8 +958,14 @@ void polygon_shade(Polygon *p, Lighting *lighting, DrawState *ds) {
                 p->vertex[i].val[2] - ds->viewer.val[2]);
             
             // Calculate what color the vertex is supposed to be:
+            printf("Polygon is %d sided\n", p->oneSided);
             lighting_shading(lighting, &p->normal[i], &view_vec, &p->vertex[i],
             &ds->body, &ds->surface, ds->surfaceCoeff, p->oneSided, &c);
+
+            // Copy the value of the computed color into the vertex color:
+            color_copy(&p->color[i], &c);
+            // printf("polygon_shade(): Color of vertex %d is : (%f, %f, %f)\n",
+            //     i, p->color[i].c[0], p->color[i].c[1], p->color[i].c[2]);
         }
         break;
 

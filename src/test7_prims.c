@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     module_cube(scene, 0);
 
 
-    src = image_create( 360, 640 );
+    src = image_create(360, 640);
     ds = drawstate_create();
     ds->shade = ShadeFrame;
 

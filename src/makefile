@@ -209,6 +209,9 @@ test9d: $(ODIR)/test9d.o
 testLighting_shading: $(ODIR)/testLighting_shading.o
 	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
 
+test_drawShade: $(ODIR)/test_drawShade.o
+	$(CC) -o $(BINDIR)/$@ $^ $(LFLAGS) $(LIBS)
+
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
 

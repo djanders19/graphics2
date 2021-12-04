@@ -134,7 +134,7 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
     Vector negative_L = {{0.0, 0.0, 0.0}}; // Used in spotlighting
     Vector H = {{0.0, 0.0, 0.0}}; // Placeholder for H-vector
     float l_dot_n, pow_s_of_H_dot_N;
-    printf("Initial color: (%.2f %.2f %.2f)\n", c->c[0], c->c[1], c->c[2]);
+    // printf("Initial color: (%.2f %.2f %.2f)\n", c->c[0], c->c[1], c->c[2]);
 
     // evaluate lighting for every light at point p with passed params:
     for (int i = 0; i < l->nLights; i++) {
@@ -147,8 +147,8 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 c->c[0] = c->c[0] + Cb->c[0] * light.color.c[0]; // Set red
                 c->c[1] = c->c[1] + Cb->c[1] * light.color.c[1]; // Set green
                 c->c[2] = c->c[2] + Cb->c[2] * light.color.c[2]; // Set blue
-                printf("Ambient light: (%.2f %.2f %.2f)\n",\
-                    c->c[0], c->c[1], c->c[2]);
+                /* printf("Ambient light: (%.2f %.2f %.2f)\n",\
+                     c->c[0], c->c[1], c->c[2]); */
                 break;
             
             case LightDirect:
@@ -193,6 +193,7 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
             case LightPoint:
                 // If point is one-sided and we can't see it's normal, we can just ignore it
                 if (oneSided != 0 && vector_dot(V, N) <= 0) {
+                    printf("lighting_shading(): LightPoint - oneSided\n");
                     break;                
                 }
 
@@ -206,6 +207,10 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 // If the view is on the opposite side of the point as the light
                 // don't shade the point.
                 if (vector_dot(V, &L) <= 0) {
+                    printf("\nlighting_shading():LightPoint-View opposite light\n");
+                    // vector_print(V, stdout);
+                    // vector_print(&L, stdout);
+                    printf("\n");
                     break;
                 }
                 
@@ -228,8 +233,8 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 c->c[2] =   c->c[2] + 
                           (Cb->c[2] * light.color.c[2] * l_dot_n + 
                            Cs->c[2] * light.color.c[2] * pow_s_of_H_dot_N);
-                printf("Point light: (%.2f %.2f %.2f)\n",\
-                    c->c[0], c->c[1], c->c[2]);
+                /* printf("Point light: (%.2f %.2f %.2f)\n",\
+                     c->c[0], c->c[1], c->c[2]); */
                 break;
             
             case LightSpot:
@@ -292,4 +297,5 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
     if (c->c[0] > 1.0) c->c[0] = 1.0;
     if (c->c[1] > 1.0) c->c[1] = 1.0;
     if (c->c[2] > 1.0) c->c[2] = 1.0;
+    printf("c: (%.2f,%.2f,%.2f)\n", c->c[0], c->c[1], c->c[2]);
 }
