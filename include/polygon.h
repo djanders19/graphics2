@@ -51,7 +51,10 @@ void polygon_drawShade(Polygon *p, Image *src, DrawState *ds, Lighting *light);
 void polygon_drawFill_SuperSampled(Polygon *p, Image *src, Color c, DrawState* ds);
 void polygon_drawFillB(Polygon *p, Image *src, Color c);
 
-/* Utility functions */
+/* Utility functions for shading */
 void polygon_shade(Polygon *p, Lighting *lighting, DrawState *ds);
-
+void polygon_setNormals(Polygon *p, int numV, Vector *nlist);
+void polygon_setColors(Polygon *p, int numV, Color *clist);
+void polygon_setAll(Polygon *p, int numV, Point *vlist, Color *clist, 
+                    Vector *nlist, int zBuffer, int oneSided);
 #endif

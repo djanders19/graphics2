@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include <math.h>
 #include "graphicslib.h"
 
@@ -134,7 +135,9 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
     Vector negative_L = {{0.0, 0.0, 0.0}}; // Used in spotlighting
     Vector H = {{0.0, 0.0, 0.0}}; // Placeholder for H-vector
     float l_dot_n, pow_s_of_H_dot_N;
-    // printf("Initial color: (%.2f %.2f %.2f)\n", c->c[0], c->c[1], c->c[2]);
+    #if DEBUG == 0
+    printf("Initial color: (%.2f %.2f %.2f)\n", c->c[0], c->c[1], c->c[2]);
+    #endif
 
     // evaluate lighting for every light at point p with passed params:
     for (int i = 0; i < l->nLights; i++) {
@@ -147,21 +150,31 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 c->c[0] = c->c[0] + Cb->c[0] * light.color.c[0]; // Set red
                 c->c[1] = c->c[1] + Cb->c[1] * light.color.c[1]; // Set green
                 c->c[2] = c->c[2] + Cb->c[2] * light.color.c[2]; // Set blue
-                /* printf("Ambient light: (%.2f %.2f %.2f)\n",\
-                     c->c[0], c->c[1], c->c[2]); */
+                #if DEBUG == 0
+                printf("Ambient light: (%.2f %.2f %.2f)\n",\
+                    c->c[0], c->c[1], c->c[2]);
+                #endif
                 break;
             
             case LightDirect:
                 // If point is one-sided and we can't see it's normal, we can 
                 // just ignore it
                 if (oneSided != 0 && vector_dot(V, N) <= 0) {
+                    #if DEBUG == 0
+                    printf("lighting_shading(): LightDirect - oneSided\n");
+                    vector_print(V, stdout);
+                    vector_print(N, stdout);
+                    #endif
                     break;                
                 }
                 // In the case of direct lighting, the light is positionless
                 // (or more accurately, it's located at infinity along the
                 // vector light.direction). So, we just copy the light direction
-                // into L:
-                vector_copy(&L, &light.direction);
+                // into L, but reversed so as to point back at the light source
+                // The way the light vector is supposed to.
+                vector_set(&L, -light.direction.val[0], 
+                                -light.direction.val[1],
+                                -light.direction.val[2]);
 
                 // If the view is on the opposite side of the point as the light
                 // don't shade the point.
@@ -169,14 +182,30 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                     break;
                 }
 
+                // Set the halfway vector and normalize *everything* - non-
+                // normal vectors can lead to overinflated dot-products, and
+                // basically blowout our colors:
                 vector_set(&H, (L.val[0] + V->val[0]) / 2.0,  
                                (L.val[1] + V->val[1]) / 2.0,
                                (L.val[2] + V->val[2]) / 2.0);
                 vector_normalize(&L);
                 vector_normalize(&H);
+                vector_normalize(N);
 
                 // Update color accumulator using light equation:
+                // This and the next value get used in the light equation.
+                // We take the absolute value here as we can get negative values
+                // from the dot product if we're dealing with two sided polygons
                 l_dot_n = fabs(vector_dot(&L, N));
+                
+                /*
+                Note that we could get a potentially big speedup here if we only
+                allow rougnesses to be powers of 2 - then instead of having to
+                use pow(), we could just left shift the dot-product s times.
+                However this is slightly less intuitive to the user. As I wasn't
+                sure how fine I should expect the use cases to be, here I just
+                opted for the pow() solution as it offers maximum flexibility
+                */
                 pow_s_of_H_dot_N = pow(vector_dot(&H, N), s);
                 c->c[0] =   c->c[0] + 
                           (Cb->c[0] * light.color.c[0] * l_dot_n + 
@@ -186,14 +215,22 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                            Cs->c[1] * light.color.c[1] * pow_s_of_H_dot_N);
                 c->c[2] =   c->c[2] + 
                           (Cb->c[2] * light.color.c[2] * l_dot_n + 
-                           Cs->c[2] * light.color.c[2] * pow_s_of_H_dot_N);                printf("Direct light: (%.2f %.2f %.2f)\n",\
+                           Cs->c[2] * light.color.c[2] * pow_s_of_H_dot_N);                
+                #if DEBUG == 0
+                printf("Direct light: (%.2f %.2f %.2f)\n",\
                     c->c[0], c->c[1], c->c[2]);
+                #endif
                 break;
             
             case LightPoint:
-                // If point is one-sided and we can't see it's normal, we can just ignore it
+                // If point is one-sided and we can't see it's normal, we can 
+                // just ignore it
                 if (oneSided != 0 && vector_dot(V, N) <= 0) {
+                    #if DEBUG == 0
                     printf("lighting_shading(): LightPoint - oneSided\n");
+                    vector_print(V, stdout);
+                    vector_print(N, stdout);
+                    #endif
                     break;                
                 }
 
@@ -207,10 +244,13 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 // If the view is on the opposite side of the point as the light
                 // don't shade the point.
                 if (vector_dot(V, &L) <= 0) {
-                    printf("\nlighting_shading():LightPoint-View opposite light\n");
-                    // vector_print(V, stdout);
-                    // vector_print(&L, stdout);
-                    printf("\n");
+                    #if DEBUG == 0
+                    printf("lighting_shading(): LightPoint - light and view are opposite\n");
+                    printf("V: ");
+                    vector_print(V, stdout);
+                    printf("L: ");
+                    vector_print(&L, stdout);
+                    #endif
                     break;
                 }
                 
@@ -220,10 +260,17 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                                (L.val[2] + V->val[2]) / 2.0);
                 vector_normalize(&L);
                 vector_normalize(&H);
+                vector_normalize(N);
 
                 // Update color accumulator using light equation:
+                // We take the absolute value here as we can get negative values
+                // from the dot product if we're dealing with two sided polygons
                 l_dot_n = fabs(vector_dot(&L, N));
+
+                // See note in case LightDirect about how to speed this up
                 pow_s_of_H_dot_N = pow(vector_dot(&H, N), s);
+
+                // Actual update happens here:
                 c->c[0] =   c->c[0] + 
                           (Cb->c[0] * light.color.c[0] * l_dot_n + 
                            Cs->c[0] * light.color.c[0] * pow_s_of_H_dot_N);
@@ -233,32 +280,52 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
                 c->c[2] =   c->c[2] + 
                           (Cb->c[2] * light.color.c[2] * l_dot_n + 
                            Cs->c[2] * light.color.c[2] * pow_s_of_H_dot_N);
-                /* printf("Point light: (%.2f %.2f %.2f)\n",\
-                     c->c[0], c->c[1], c->c[2]); */
+                #if DEBUG == 0
+                printf("Point light: (%.2f %.2f %.2f)\n",\
+                     c->c[0], c->c[1], c->c[2]);
+                #endif
                 break;
             
             case LightSpot:
+                // If point is one-sided and we can't see it's normal, we can 
+                // just ignore it
+                if (oneSided != 0 && vector_dot(V, N) <= 0) {
+                    #if DEBUG == 0
+                    printf("lighting_shading(): LightPoint - oneSided\n");
+                    vector_print(V, stdout);
+                    vector_print(N, stdout);
+                    #endif
+                    break;                
+                }
                 // Calculate light vector:
                 vector_set(&L, light.position.val[0] - p->val[0],
                                light.position.val[1] - p->val[1],
                                light.position.val[2] - p->val[2]);
-                vector_set(&H, L.val[0] + V->val[0] / 2,  
-                               L.val[1] + V->val[1] / 2,
-                               L.val[2] + V->val[2] / 2);
-                vector_set(&negative_L, L.val[0], L.val[1], L.val[2]);
+
+                // Calculate halfway vector:
+                vector_set(&H, (L.val[0] + V->val[0]) / 2,  
+                               (L.val[1] + V->val[1]) / 2,
+                               (L.val[2] + V->val[2]) / 2);
                 vector_normalize(&L);
+                vector_set(&negative_L, -L.val[0], -L.val[1], -L.val[2]);
                 vector_normalize(&H);
+                vector_normalize(N);
 
                 // Calculate cos of angle between negative_L and light direction
                 float alpha = vector_dot(&light.direction, &negative_L) / 
                               (vector_length(&light.direction) * 
                                vector_length(&negative_L));
+
+                // calculate these two values as in LightPoint case for use in
+                // the lighting equations:
                 l_dot_n = fabs(vector_dot(&L, N));
                 pow_s_of_H_dot_N = pow(vector_dot(&H, N), s);
 
                 // If alpha is greater than the cutoff angle, we apply the light
                 // equation but with a falloff function applied:
                 if (alpha > light.cutoff) {
+                    // Again, we can speed this computation by only allowing
+                    // sharpness to be a power of 2 and left shifting instead:
                     int falloff = pow(alpha, light.sharpness);
                     c->c[0] = c->c[0] + falloff *
                             (Cb->c[0] * light.color.c[0] * l_dot_n + 
@@ -297,5 +364,5 @@ void lighting_shading(Lighting *l, Vector *N, Vector *V, Point *p, Color *Cb,
     if (c->c[0] > 1.0) c->c[0] = 1.0;
     if (c->c[1] > 1.0) c->c[1] = 1.0;
     if (c->c[2] > 1.0) c->c[2] = 1.0;
-    printf("c: (%.2f,%.2f,%.2f)\n", c->c[0], c->c[1], c->c[2]);
+    // printf("c: (%.2f,%.2f,%.2f)\n", c->c[0], c->c[1], c->c[2]);
 }

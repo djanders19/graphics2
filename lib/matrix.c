@@ -316,18 +316,20 @@ void matrix_xformVector(Matrix *m, Vector *p, Vector *q) {
         printf("matrix_xformVector(): passed NULL arguments.\n");
         return;
     }
+    Vector temp;
 
     // Transform 0th value
-    q->val[0] = p->val[0] * m->m[0][0] + p->val[1] * m->m[0][1] + 
+    temp.val[0] = p->val[0] * m->m[0][0] + p->val[1] * m->m[0][1] + 
                 p->val[2] * m->m[0][2];
 
     // Transform 1st value
-    q->val[1] = p->val[0] * m->m[1][0] + p->val[1] * m->m[1][1] + 
+    temp.val[1] = p->val[0] * m->m[1][0] + p->val[1] * m->m[1][1] + 
                 p->val[2] * m->m[1][2];
 
     //Transform 2nd value
-    q->val[2] = p->val[0] * m->m[2][0] + p->val[1] * m->m[2][1] + 
+    temp.val[2] = p->val[0] * m->m[2][0] + p->val[1] * m->m[2][1] + 
                 p->val[2] * m->m[2][2];
+    vector_copy(q, &temp);
 }
 
 /**

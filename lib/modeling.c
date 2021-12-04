@@ -312,8 +312,9 @@ void module_polygon(Module *md, Polygon *p) {
         printf("module_polygon(): passed null pointer.\n");
         return;
     }
-
+    printf("initializing element\n");
     Element *e = element_init(ObjPolygon, p);
+    printf("element initialized\n");
     if (!md->tail) {
         md->head = e;
         md->tail = e;
@@ -464,9 +465,21 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
         // Switch on the type of E:
         switch (i->type)
         {
-        case ObjColor:
+        case ObjColor:;
             printf("editing module color\n");
             color_copy(&(ds->color), &(i->obj.color));
+            break;
+
+        case ObjSurfaceColor:;
+            color_copy(&(ds->surface), &(i->obj.color));
+            break;
+        
+        case ObjBodyColor:;
+            color_copy(&(ds->body), &(i->obj.color));
+            break;
+
+        case ObjSurfaceCoeff:;
+            ds->surfaceCoeff = i->obj.coeff;
             break;
         
         case ObjPoint: ;
@@ -537,28 +550,34 @@ void module_draw(Module *md, Matrix *VTM, Matrix *GTM,\
             break;
         
         case ObjPolygon: ;
-            //printf("drawing polygon\n");
             // Copy the polygon data in E to P
             Polygon* p = polygon_create();
             polygon_copy(p, &(i->obj.polygon));
-
             // Transform P by the LTM
             matrix_xformPolygon(LTM, p);
 
             // Transform P by the GTM
             matrix_xformPolygon(GTM, p);
 
+            // If doing Gouraud shading, calculate color at each vertex using P
+            if (ds->shade == ShadeGouraud) {
+                polygon_shade(p, lighting, ds);
+            }
+            
             // Transform P by the VTM
             matrix_xformPolygon(VTM, p);
 
             // Normalize P by the homogenous coord
             polygon_normalize(p);
 
+            polygon_print(p, stdout);
             // If DS->shade is ShadeFrame -> Draw boundary lines
             if (ds->shade == ShadeFrame) {
                 polygon_draw(p, src, ds->color);
             } else {
-                polygon_drawFill(p, src, ds->color, ds);
+                // Otherwise, we use polygon_drawShade():
+                polygon_drawShade(p, src, ds, NULL);
+                // polygon_drawFill(p, src, ds->color, ds);
                 // polygon_print(p, stdout);
             }
 

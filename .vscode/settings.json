@@ -12,6 +12,7 @@
         "color.h": "c",
         "drawstate.h": "c",
         "modeling.h": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "horizontalsin.h": "c"
     }
 }
